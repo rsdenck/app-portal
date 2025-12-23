@@ -78,7 +78,18 @@ foreach ($servers as $sIdx => $srv) {
                 $aggregatedData['datastores'][] = array_merge($ds, ['server_label' => $serverLabel]);
             }
             
-            echo "   - Collected via SOAP: " . count($data['vms']) . " VMs, " . count($data['hosts']) . " hosts, " . count($data['datastores']) . " datastores.\n";
+            echo "   - Collected via SOAP:\n";
+            echo "     > VMs:        " . count($data['vms']) . " (" . $data['stats']['running_vms'] . " running)\n";
+            echo "     > Hosts:      " . count($data['hosts']) . "\n";
+            echo "     > Clusters:   " . count($data['clusters']) . "\n";
+            echo "     > Datastores: " . count($data['datastores']) . "\n";
+            
+            if (!empty($data['clusters'])) {
+                echo "     > Discovery of Clusters:\n";
+                foreach ($data['clusters'] as $c) {
+                    echo "       - [Cluster] " . $c['name'] . "\n";
+                }
+            }
             continue; // Success with SOAP, proceed to next server
         }
 

@@ -113,41 +113,122 @@ $attendants = attendant_list($pdo);
 
 render_header('Tickets · Atendentes', $user);
 ?>
-<div class="card" style="margin-bottom:18px;max-width:720px">
-  <div style="font-weight:700;margin-bottom:6px"><?= $editing ? 'Editar atendente' : 'Novo atendente' ?></div>
-  <div class="muted" style="margin-bottom:10px">Crie ou edite usuários atendentes/analistas vinculados a até duas categorias.</div>
-  <?php if ($success): ?><div class="success"><?= h($success) ?></div><?php endif; ?>
-  <?php if ($error): ?><div class="error"><?= h($error) ?></div><?php endif; ?>
-  <form method="post">
-    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-    <input type="hidden" name="mode" value="<?= $editing ? 'update' : 'create' ?>">
-    <?php if ($editing): ?>
-      <input type="hidden" name="user_id" value="<?= (int)$editing['id'] ?>">
-    <?php endif; ?>
-    <div class="row">
-      <div class="col">
-        <label>Nome</label>
-        <input name="name" value="<?= h((string)($editing['name'] ?? '')) ?>" required>
+
+<div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+  <a href="index.php" class="btn" style="display: inline-flex; align-items: center; gap: 8px;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    Voltar
+  </a>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 350px; gap: 20px; align-items: start;">
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <div>
+        <div style="font-weight:700; font-size: 1.1rem;">Atendentes</div>
+        <div class="muted" style="font-size: 0.85rem;">Lista de usuários analistas e seus departamentos</div>
       </div>
-      <div class="col">
-        <label>Email</label>
-        <input name="email" type="email" value="<?= h((string)($editing['email'] ?? '')) ?>" required>
+      <div style="background: var(--primary-color); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">
+        <?= count($attendants) ?> Total
       </div>
     </div>
-    <div class="row">
-      <div class="col">
-        <label><?= $editing ? 'Nova senha' : 'Senha' ?></label>
-        <input name="password" type="password" autocomplete="new-password" <?= $editing ? '' : 'required' ?>>
-      </div>
-      <div class="col">
-        <label>Departamento</label>
-        <input name="department" value="<?= h((string)($editing['department'] ?? '')) ?>">
-      </div>
+    
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nome / Email</th>
+            <th>Departamento</th>
+            <th>Categorias</th>
+            <th style="text-align: right;">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($attendants as $a): ?>
+            <tr>
+              <td>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="width: 32px; height: 32px; background: #2a2a2a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.8rem; color: var(--primary-color); border: 1px solid #333;">
+                    <?= strtoupper(substr($a['name'], 0, 1)) ?>
+                  </div>
+                  <div>
+                    <div style="font-weight: 600;"><?= h((string)$a['name']) ?></div>
+                    <div class="muted" style="font-size: 0.75rem;"><?= h((string)$a['email']) ?></div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span style="background: #1a1a1a; padding: 2px 8px; border-radius: 4px; border: 1px solid #333; font-size: 0.85rem;">
+                  <?= h((string)($a['department'] ?: 'Geral')) ?>
+                </span>
+              </td>
+              <td>
+                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                  <?php
+                    $cid1 = (int)($a['category_id'] ?? 0);
+                    $cid2 = (int)($a['category_id_2'] ?? 0);
+                    if ($cid1 && isset($categoryNames[$cid1])): ?>
+                      <span style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; border: 1px solid rgba(var(--primary-rgb), 0.2);">
+                        <?= h($categoryNames[$cid1]) ?>
+                      </span>
+                    <?php endif; ?>
+                    <?php if ($cid2 && isset($categoryNames[$cid2]) && $cid2 !== $cid1): ?>
+                      <span style="background: rgba(var(--primary-rgb), 0.1); color: var(--primary-color); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; border: 1px solid rgba(var(--primary-rgb), 0.2);">
+                        <?= h($categoryNames[$cid2]) ?>
+                      </span>
+                    <?php endif; ?>
+                </div>
+              </td>
+              <td style="text-align: right;">
+                <a class="btn" href="/tk_atendente.php?action=edit&user_id=<?= (int)$a['id'] ?>" style="padding: 4px 10px; font-size: 0.85rem;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4L18.5 2.5z"></path></svg>
+                  Editar
+                </a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
     </div>
-    <div class="row">
-      <div class="col">
-        <label>Categoria 1</label>
-        <select name="category_id_1" required>
+  </div>
+
+  <div class="card" style="position: sticky; top: 20px;">
+    <div style="font-weight:700; margin-bottom:4px; font-size: 1.1rem;"><?= $editing ? 'Editar Atendente' : 'Novo Atendente' ?></div>
+    <div class="muted" style="margin-bottom:20px; font-size: 0.85rem;">Preencha os dados abaixo para <?= $editing ? 'atualizar o cadastro' : 'criar um novo acesso' ?>.</div>
+    
+    <?php if ($success): ?><div class="success" style="margin-bottom: 15px;"><?= h($success) ?></div><?php endif; ?>
+    <?php if ($error): ?><div class="error" style="margin-bottom: 15px;"><?= h($error) ?></div><?php endif; ?>
+
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+      <input type="hidden" name="mode" value="<?= $editing ? 'update' : 'create' ?>">
+      <?php if ($editing): ?>
+        <input type="hidden" name="user_id" value="<?= (int)$editing['id'] ?>">
+      <?php endif; ?>
+      
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">Nome Completo</label>
+        <input name="name" value="<?= h((string)($editing['name'] ?? '')) ?>" required style="width: 100%;">
+      </div>
+      
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">E-mail</label>
+        <input name="email" type="email" value="<?= h((string)($editing['email'] ?? '')) ?>" required style="width: 100%;">
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">Departamento</label>
+        <input name="department" value="<?= h((string)($editing['department'] ?? '')) ?>" placeholder="Ex: N1, Suporte, Redes" style="width: 100%;">
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;"><?= $editing ? 'Nova Senha (opcional)' : 'Senha' ?></label>
+        <input name="password" type="password" autocomplete="new-password" <?= $editing ? '' : 'required' ?> style="width: 100%;">
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">Categoria Principal</label>
+        <select name="category_id_1" required style="width: 100%;">
           <option value="">Selecione...</option>
           <?php foreach ($categories as $c): ?>
             <option value="<?= (int)$c['id'] ?>" <?= ((int)($editing['category_id'] ?? 0) === (int)$c['id']) ? 'selected' : '' ?>>
@@ -156,10 +237,11 @@ render_header('Tickets · Atendentes', $user);
           <?php endforeach; ?>
         </select>
       </div>
-      <div class="col">
-        <label>Categoria 2 (opcional)</label>
-        <select name="category_id_2">
-          <option value="">Selecione...</option>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">Categoria Secundária</label>
+        <select name="category_id_2" style="width: 100%;">
+          <option value="">Nenhuma</option>
           <?php foreach ($categories as $c): ?>
             <option value="<?= (int)$c['id'] ?>" <?= ((int)($editing['category_id_2'] ?? 0) === (int)$c['id']) ? 'selected' : '' ?>>
               <?= h((string)$c['name']) ?>
@@ -167,56 +249,15 @@ render_header('Tickets · Atendentes', $user);
           <?php endforeach; ?>
         </select>
       </div>
-    </div>
-    <div style="margin-top:14px">
-      <button class="btn primary" type="submit"><?= $editing ? 'Salvar alterações' : 'Criar atendente' ?></button>
-      <?php if ($editing): ?>
-        <a class="btn" href="/tk_atendente.php">Cancelar</a>
-      <?php endif; ?>
-    </div>
-  </form>
-</div>
-<div class="card">
-  <div style="font-weight:700;margin-bottom:6px">Atendentes</div>
-  <table class="table">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Nome</th>
-        <th>Email</th>
-        <th>Departamento</th>
-        <th>Categorias</th>
-        <th>Ações</th>
-      </tr>
-    </thead>
-    <tbody>
-      <?php foreach ($attendants as $a): ?>
-        <tr>
-          <td><?= (int)$a['id'] ?></td>
-          <td><?= h((string)$a['name']) ?></td>
-          <td><?= h((string)$a['email']) ?></td>
-          <td><?= h((string)($a['department'] ?? '')) ?></td>
-          <td>
-            <?php
-              $cats = [];
-              $cid1 = (int)($a['category_id'] ?? 0);
-              $cid2 = (int)($a['category_id_2'] ?? 0);
-              if ($cid1 && isset($categoryNames[$cid1])) {
-                  $cats[] = $categoryNames[$cid1];
-              }
-              if ($cid2 && isset($categoryNames[$cid2]) && $cid2 !== $cid1) {
-                  $cats[] = $categoryNames[$cid2];
-              }
-            ?>
-            <?= h(implode(', ', $cats)) ?>
-          </td>
-          <td>
-            <a class="btn" href="/tk_atendente.php?action=edit&user_id=<?= (int)$a['id'] ?>">Editar</a>
-          </td>
-        </tr>
-      <?php endforeach; ?>
-    </tbody>
-  </table>
+
+      <div style="display: flex; gap: 10px;">
+        <button class="btn primary" type="submit" style="flex: 1;"><?= $editing ? 'Salvar' : 'Cadastrar' ?></button>
+        <?php if ($editing): ?>
+          <a class="btn" href="/tk_atendente.php" style="flex: 1; text-align: center;">Cancelar</a>
+        <?php endif; ?>
+      </div>
+    </form>
+  </div>
 </div>
 <?php
 render_footer();

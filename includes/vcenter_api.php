@@ -143,7 +143,7 @@ function vcenter_get_soap_cookie(array $server)
 }
 
 /**
- * Gets basic stats and data using SOAP
+ * Gets basic stats and data using SOAP with full discovery and pagination
  */
 function vcenter_get_data_soap(array $server)
 {
@@ -170,7 +170,7 @@ function vcenter_get_data_soap(array $server)
         ]
     ];
 
-    // Traversal Spec for comprehensive recursive search
+    // Comprehensive Traversal Spec for deep discovery
     $traversalSpec = '
         <selectSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="TraversalSpec">
             <name>visitFolders</name>
@@ -206,13 +206,6 @@ function vcenter_get_data_soap(array $server)
             <selectSet><name>visitFolders</name></selectSet>
         </selectSet>
         <selectSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="TraversalSpec">
-            <name>visitDatacenter</name>
-            <type>Datacenter</type>
-            <path>networkFolder</path>
-            <skip>false</skip>
-            <selectSet><name>visitFolders</name></selectSet>
-        </selectSet>
-        <selectSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="TraversalSpec">
             <name>visitComputeResource</name>
             <type>ComputeResource</type>
             <path>host</path>
@@ -223,36 +216,92 @@ function vcenter_get_data_soap(array $server)
             <type>ClusterComputeResource</type>
             <path>host</path>
             <skip>false</skip>
+        </selectSet>
+        <selectSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="TraversalSpec">
+            <name>visitClusterToResourcePool</name>
+            <type>ClusterComputeResource</type>
+            <path>resourcePool</path>
+            <skip>false</skip>
+            <selectSet><name>visitResourcePool</name></selectSet>
+        </selectSet>
+        <selectSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="TraversalSpec">
+            <name>visitResourcePool</name>
+            <type>ResourcePool</type>
+            <path>resourcePool</path>
+            <skip>false</skip>
+            <selectSet><name>visitResourcePool</name></selectSet>
+        </selectSet>
+        <selectSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="TraversalSpec">
+            <name>visitResourcePoolToVM</name>
+            <type>ResourcePool</type>
+            <path>vm</path>
+            <skip>false</skip>
         </selectSet>';
 
-    // Fetch VMs
-    $vmXml = vcenter_soap_request($server, 'RetrievePropertiesEx', '
-        <_this type="PropertyCollector">propertyCollector</_this>
-        <specSet>
-            <propSet>
-                <type>VirtualMachine</type>
-                <all>false</all>
-                <pathSet>name</pathSet>
-                <pathSet>runtime.powerState</pathSet>
-                <pathSet>config.hardware.numCPU</pathSet>
-                <pathSet>config.hardware.memoryMB</pathSet>
-            </propSet>
-            <objectSet>
-                <obj type="Folder">' . $rootFolder . '</obj>
-                <skip>false</skip>
-                ' . $traversalSpec . '
-            </objectSet>
-        </specSet>
-        <options/>');
+    /**
+     * Helper to fetch all objects with pagination
+     */
+    $fetchAll = function(string $type, array $pathSets) use ($server, $rootFolder, $traversalSpec) {
+        $objects = [];
+        $params = '
+            <_this type="PropertyCollector">propertyCollector</_this>
+            <specSet>
+                <propSet>
+                    <type>' . $type . '</type>
+                    <all>false</all>';
+        foreach ($pathSets as $path) {
+            $params .= '<pathSet>' . $path . '</pathSet>';
+        }
+        $params .= '
+                </propSet>
+                <objectSet>
+                    <obj type="Folder">' . $rootFolder . '</obj>
+                    <skip>false</skip>
+                    ' . $traversalSpec . '
+                </objectSet>
+            </specSet>
+            <options/>';
 
-    preg_match_all('/<objects([^>]*)>(.*?)<\/objects>/s', $vmXml, $vmObjects);
-    foreach ($vmObjects[2] as $vmObj) {
+        $xml = vcenter_soap_request($server, 'RetrievePropertiesEx', $params);
+        
+        while (true) {
+            preg_match_all('/<objects([^>]*)>(.*?)<\/objects>/s', $xml, $matches);
+            if (isset($matches[2])) {
+                foreach ($matches[2] as $objXml) {
+                    $objects[] = $objXml;
+                }
+            }
+
+            // Check for token (pagination)
+            if (preg_match('/<token>([^<]+)<\/token>/', $xml, $tokenMatches)) {
+                $token = $tokenMatches[1];
+                $xml = vcenter_soap_request($server, 'ContinueRetrievePropertiesEx', '
+                    <_this type="PropertyCollector">propertyCollector</_this>
+                    <token>' . $token . '</token>');
+            } else {
+                break;
+            }
+        }
+        return $objects;
+    };
+
+    // 1. Fetch VMs
+    $vmObjects = $fetchAll('VirtualMachine', ['name', 'runtime.powerState', 'config.hardware.numCPU', 'config.hardware.memoryMB', 'guest.ipAddress', 'guest.guestFullName', 'runtime.host', 'datastore']);
+    foreach ($vmObjects as $vmObj) {
         $vm = [];
         if (preg_match('/<name>name<\/name><val[^>]*>([^<]+)<\/val>/', $vmObj, $m)) $vm['name'] = $m[1];
         if (preg_match('/<name>runtime\.powerState<\/name><val[^>]*>([^<]+)<\/val>/', $vmObj, $m)) $vm['power_state'] = ($m[1] === 'poweredOn' ? 'POWERED_ON' : 'POWERED_OFF');
         if (preg_match('/<name>config\.hardware\.numCPU<\/name><val[^>]*>([^<]+)<\/val>/', $vmObj, $m)) $vm['cpu_count'] = (int)$m[1];
         if (preg_match('/<name>config\.hardware\.memoryMB<\/name><val[^>]*>([^<]+)<\/val>/', $vmObj, $m)) $vm['memory_size_MiB'] = (int)$m[1];
+        if (preg_match('/<name>guest\.ipAddress<\/name><val[^>]*>([^<]+)<\/val>/', $vmObj, $m)) $vm['ip_address'] = $m[1];
+        if (preg_match('/<name>guest\.guestFullName<\/name><val[^>]*>([^<]+)<\/val>/', $vmObj, $m)) $vm['guest_os'] = $m[1];
+        if (preg_match('/<name>runtime\.host<\/name><val[^>]* type="HostSystem">([^<]+)<\/val>/', $vmObj, $m)) $vm['host_ref'] = $m[1];
         
+        // Datastores (multiple)
+        if (preg_match_all('/<name>datastore<\/name><val[^>]* type="Datastore">([^<]+)<\/val>/', $vmObj, $m)) {
+            $vm['datastore_refs'] = $m[1];
+        }
+
         if (isset($vm['name'])) {
             $data['vms'][] = $vm;
             $data['stats']['total_vms']++;
@@ -260,31 +309,17 @@ function vcenter_get_data_soap(array $server)
         }
     }
 
-    // Fetch Hosts
-    $hostXml = vcenter_soap_request($server, 'RetrievePropertiesEx', '
-        <_this type="PropertyCollector">propertyCollector</_this>
-        <specSet>
-            <propSet>
-                <type>HostSystem</type>
-                <all>false</all>
-                <pathSet>name</pathSet>
-                <pathSet>runtime.connectionState</pathSet>
-                <pathSet>runtime.powerState</pathSet>
-            </propSet>
-            <objectSet>
-                <obj type="Folder">' . $rootFolder . '</obj>
-                <skip>false</skip>
-                ' . $traversalSpec . '
-            </objectSet>
-        </specSet>
-        <options/>');
-
-    preg_match_all('/<objects([^>]*)>(.*?)<\/objects>/s', $hostXml, $hostObjects);
-    foreach ($hostObjects[2] as $hostObj) {
+    // 2. Fetch Hosts
+    $hostObjects = $fetchAll('HostSystem', ['name', 'runtime.connectionState', 'runtime.powerState', 'runtime.inMaintenanceMode']);
+    foreach ($hostObjects as $hostObj) {
         $host = [];
+        // Extract MoRef ID from the object XML itself if possible
+        if (preg_match('/<obj type="HostSystem">([^<]+)<\/obj>/', $hostObj, $m)) $host['ref'] = $m[1];
+        
         if (preg_match('/<name>name<\/name><val[^>]*>([^<]+)<\/val>/', $hostObj, $m)) $host['name'] = $m[1];
         if (preg_match('/<name>runtime\.connectionState<\/name><val[^>]*>([^<]+)<\/val>/', $hostObj, $m)) $host['connection_state'] = strtoupper($m[1]);
         if (preg_match('/<name>runtime\.powerState<\/name><val[^>]*>([^<]+)<\/val>/', $hostObj, $m)) $host['power_state'] = strtoupper($m[1]);
+        if (preg_match('/<name>runtime\.inMaintenanceMode<\/name><val[^>]*>([^<]+)<\/val>/', $hostObj, $m)) $host['in_maintenance'] = ($m[1] === 'true');
         
         if (isset($host['name'])) {
             $data['hosts'][] = $host;
@@ -292,82 +327,38 @@ function vcenter_get_data_soap(array $server)
         }
     }
 
-    // Fetch Datastores
-    $dsXml = vcenter_soap_request($server, 'RetrievePropertiesEx', '
-        <_this type="PropertyCollector">propertyCollector</_this>
-        <specSet>
-            <propSet>
-                <type>Datastore</type>
-                <all>false</all>
-                <pathSet>name</pathSet>
-                <pathSet>summary.capacity</pathSet>
-                <pathSet>summary.freeSpace</pathSet>
-            </propSet>
-            <objectSet>
-                <obj type="Folder">' . $rootFolder . '</obj>
-                <skip>false</skip>
-                ' . $traversalSpec . '
-            </objectSet>
-        </specSet>
-        <options/>');
-
-    preg_match_all('/<objects([^>]*)>(.*?)<\/objects>/s', $dsXml, $dsObjects);
-    foreach ($dsObjects[2] as $dsObj) {
+    // 3. Fetch Datastores
+    $dsObjects = $fetchAll('Datastore', ['name', 'summary.capacity', 'summary.freeSpace', 'host']);
+    foreach ($dsObjects as $dsObj) {
         $ds = [];
+        if (preg_match('/<obj type="Datastore">([^<]+)<\/obj>/', $dsObj, $m)) $ds['ref'] = $m[1];
         if (preg_match('/<name>name<\/name><val[^>]*>([^<]+)<\/val>/', $dsObj, $m)) $ds['name'] = $m[1];
         if (preg_match('/<name>summary\.capacity<\/name><val[^>]*>([^<]+)<\/val>/', $dsObj, $m)) $ds['capacity'] = (float)$m[1];
         if (preg_match('/<name>summary\.freeSpace<\/name><val[^>]*>([^<]+)<\/val>/', $dsObj, $m)) $ds['free_space'] = (float)$m[1];
         
+        // Hosts sharing this datastore
+        if (preg_match_all('/<name>host<\/name>.*?<key type="HostSystem">([^<]+)<\/key>/s', $dsObj, $m)) {
+            $ds['shared_hosts_count'] = count($m[1]);
+        }
+
         if (isset($ds['name'])) {
             $data['datastores'][] = $ds;
             $data['stats']['total_datastores']++;
         }
     }
 
-    // Fetch Clusters
-    $clusterXml = vcenter_soap_request($server, 'RetrievePropertiesEx', '
-        <_this type="PropertyCollector">propertyCollector</_this>
-        <specSet>
-            <propSet>
-                <type>ClusterComputeResource</type>
-                <all>false</all>
-                <pathSet>name</pathSet>
-            </propSet>
-            <objectSet>
-                <obj type="Folder">' . $rootFolder . '</obj>
-                <skip>false</skip>
-                ' . $traversalSpec . '
-            </objectSet>
-        </specSet>
-        <options/>');
-
-    preg_match_all('/<objects([^>]*)>(.*?)<\/objects>/s', $clusterXml, $clusterObjects);
-    foreach ($clusterObjects[2] as $cObj) {
+    // 4. Fetch Clusters
+    $clusterObjects = $fetchAll('ClusterComputeResource', ['name']);
+    foreach ($clusterObjects as $cObj) {
         if (preg_match('/<name>name<\/name><val[^>]*>([^<]+)<\/val>/', $cObj, $m)) {
             $data['clusters'][] = ['name' => $m[1]];
             $data['stats']['total_clusters']++;
         }
     }
 
-    // Fetch Datacenters
-    $dcXml = vcenter_soap_request($server, 'RetrievePropertiesEx', '
-        <_this type="PropertyCollector">propertyCollector</_this>
-        <specSet>
-            <propSet>
-                <type>Datacenter</type>
-                <all>false</all>
-                <pathSet>name</pathSet>
-            </propSet>
-            <objectSet>
-                <obj type="Folder">' . $rootFolder . '</obj>
-                <skip>false</skip>
-                ' . $traversalSpec . '
-            </objectSet>
-        </specSet>
-        <options/>');
-
-    preg_match_all('/<objects([^>]*)>(.*?)<\/objects>/s', $dcXml, $dcObjects);
-    foreach ($dcObjects[2] as $dcObj) {
+    // 5. Fetch Datacenters
+    $dcObjects = $fetchAll('Datacenter', ['name']);
+    foreach ($dcObjects as $dcObj) {
         if (preg_match('/<name>name<\/name><val[^>]*>([^<]+)<\/val>/', $dcObj, $m)) {
             $data['datacenters'][] = ['name' => $m[1]];
             $data['stats']['total_datacenters']++;
