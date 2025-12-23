@@ -35,6 +35,15 @@ function plugins_ensure_table(PDO $pdo): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
     $pdo->exec($sqlNsx);
 
+    // Persist table for vCenter collected data
+    $sqlVcenter = "CREATE TABLE IF NOT EXISTS plugin_vcenter_data (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        data_type VARCHAR(50) NOT NULL UNIQUE,
+        data_content JSON NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlVcenter);
+
     // Ensure column exists for older installations
     try {
         $pdo->exec("ALTER TABLE plugins ADD COLUMN required_category_slug VARCHAR(100) DEFAULT NULL AFTER icon");
@@ -69,7 +78,7 @@ function plugins_ensure_table(PDO $pdo): void
             'label' => 'VMware vCenter',
             'category' => 'Virtualização',
             'description' => 'Gestão de ambientes virtualizados VMware.',
-            'icon' => 'box',
+            'icon' => 'vm',
             'required_category_slug' => 'virtualizacao'
         ],
         [
@@ -82,7 +91,7 @@ function plugins_ensure_table(PDO $pdo): void
         ],
         [
             'name' => 'veeam',
-            'label' => 'VCSP - Veeam',
+            'label' => 'Backups',
             'category' => 'Backup',
             'description' => 'Consolidação de VCSP e VBR para gestão de backups.',
             'icon' => 'shield',
@@ -301,7 +310,7 @@ function get_memcached(): ?Memcached
 /**
  * Cache agressivo para evitar reconsultas de API
  */
-function plugin_cache_get(PDO $pdo, string $key): ?array
+function plugin_cache_get(PDO $pdo, string $key)
 {
     global $_CACHE_STATS;
     if (!isset($_CACHE_STATS)) $_CACHE_STATS = ['hits' => 0, 'misses' => 0];
@@ -323,7 +332,7 @@ function plugin_cache_get(PDO $pdo, string $key): ?array
     
     if ($res) {
         $decoded = json_decode($res['cache_value'], true);
-        if ($decoded) {
+        if ($decoded !== null) {
             $_CACHE_STATS['hits']++;
             // Sync to Memcached for next time
             if ($m) {
@@ -337,7 +346,7 @@ function plugin_cache_get(PDO $pdo, string $key): ?array
     return null;
 }
 
-function plugin_cache_set(PDO $pdo, string $key, array $value, int $ttlSeconds = 86400 * 7): void
+function plugin_cache_set(PDO $pdo, string $key, $value, int $ttlSeconds = 86400 * 7): void
 {
     // Set in Memcached
     $m = get_memcached();
@@ -351,6 +360,16 @@ function plugin_cache_set(PDO $pdo, string $key, array $value, int $ttlSeconds =
                            VALUES (?, ?, ?) 
                            ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expires_at = VALUES(expires_at)");
     $stmt->execute([$key, json_encode($value), $expiresAt]);
+}
+
+function plugin_cache_delete(PDO $pdo, string $key): void
+{
+    $m = get_memcached();
+    if ($m) {
+        $m->delete($key);
+    }
+    $stmt = $pdo->prepare("DELETE FROM plugin_cache WHERE cache_key = ?");
+    $stmt->execute([$key]);
 }
 
 function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
@@ -400,14 +419,14 @@ function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
             case 'vcenter':
                 $menus[] = [
                     'label' => 'Virtualização',
-                    'icon' => 'box',
+                    'icon' => 'vm',
                     'url' => '/plugin_vcenter.php',
                     'sub' => []
                 ];
                 break;
             case 'veeam':
                 $menus[] = [
-                    'label' => 'Backups (Veeam)',
+                    'label' => 'Backups',
                     'icon' => 'shield',
                     'url' => '/plugin_veeam.php',
                     'sub' => [

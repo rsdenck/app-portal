@@ -117,6 +117,8 @@ function render_header(string $title, ?array $user = null): void
                      <svg class="sidebar-icon" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="18" y1="20" x2="18" y2="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="6" y1="20" x2="6" y2="16" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                    <?php elseif ($pm['icon'] === 'monitor'): ?>
                      <svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12" y2="21" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                   <?php elseif ($pm['icon'] === 'vm'): ?>
+                     <svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 21h8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 17v4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 8l5 3 5-3-5-3-5 3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 12l5 3 5-3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                    <?php elseif ($pm['icon'] === 'terminal'): ?>
                      <svg class="sidebar-icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="19" x2="20" y2="19" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                    <?php endif; ?>
@@ -227,6 +229,8 @@ function render_header(string $title, ?array $user = null): void
                     <svg class="sidebar-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                   <?php elseif ($pm['icon'] === 'bar-chart'): ?>
                     <svg class="sidebar-icon" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="18" y1="20" x2="18" y2="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="6" y1="20" x2="6" y2="16" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                  <?php elseif ($pm['icon'] === 'vm'): ?>
+                    <svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 21h8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 17v4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 8l5 3 5-3-5-3-5 3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 12l5 3 5-3" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                   <?php endif; ?>
                   <span class="side-link-text"><?= h($pm['label']) ?></span>
                 </a>

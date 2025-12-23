@@ -25,6 +25,8 @@ require_once __DIR__ . '/repository.php';
 require_once __DIR__ . '/nsx_api.php';
 require_once __DIR__ . '/netflow_api.php';
 require_once __DIR__ . '/zabbix.php';
+require_once __DIR__ . '/veeam_api.php';
+require_once __DIR__ . '/vcenter_api.php';
 require_once __DIR__ . '/elasticsearch.php';
 require_once __DIR__ . '/plugins.php';
 require_once __DIR__ . '/projects.php';

@@ -117,40 +117,236 @@ render_header('Configurar Plugin · ' . $plugin['label'], $user);
         </div>
 
       <?php elseif ($pluginName === 'vcenter'): ?>
-        <div class="row">
-          <div class="col">
-            <label>URL do vCenter</label>
-            <input name="config[url]" value="<?= h($plugin['config']['url'] ?? '') ?>" placeholder="https://vcenter.exemplo.com">
-          </div>
+        <div id="vcenter-servers-container">
+          <?php 
+          $servers = $plugin['config']['servers'] ?? [];
+          if (empty($servers)) {
+              if (!empty($plugin['config']['url'])) {
+                  $servers[] = [
+                      'label' => 'vCenter Principal',
+                      'url' => $plugin['config']['url'],
+                      'username' => $plugin['config']['username'] ?? '',
+                      'password' => $plugin['config']['password'] ?? ''
+                  ];
+              } else {
+                  $servers[] = ['label' => '', 'url' => '', 'username' => '', 'password' => ''];
+              }
+          }
+          foreach ($servers as $idx => $srv): 
+          ?>
+            <div class="card vcenter-server-item" style="margin-bottom:16px; border:1px solid var(--border)">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+                <div style="font-weight:600">Servidor vCenter #<?= $idx + 1 ?></div>
+                <button type="button" class="btn danger small remove-vcenter-server" style="padding:4px 8px">Remover</button>
+              </div>
+              <div class="row">
+                <div class="col">
+                  <label>Nome de Exibição (Ex: vCenter Matriz)</label>
+                  <input name="config[servers][<?= $idx ?>][label]" value="<?= h($srv['label'] ?? '') ?>" placeholder="Um nome para você identificar este servidor no portal">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col">
+                  <label>URL do vCenter (Ex: https://vcenter.exemplo.com)</label>
+                  <input name="config[servers][<?= $idx ?>][url]" value="<?= h($srv['url'] ?? '') ?>" placeholder="https://...">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col">
+                  <label>Usuário (ex: administrator@vsphere.local)</label>
+                  <input name="config[servers][<?= $idx ?>][username]" value="<?= h($srv['username'] ?? '') ?>">
+                </div>
+                <div class="col">
+                  <label>Senha</label>
+                  <input name="config[servers][<?= $idx ?>][password]" type="password" value="<?= h($srv['password'] ?? '') ?>">
+                </div>
+              </div>
+            </div>
+          <?php endforeach; ?>
         </div>
-        <div class="row">
-          <div class="col">
-            <label>Usuário (ex: administrator@vsphere.local)</label>
-            <input name="config[username]" value="<?= h($plugin['config']['username'] ?? '') ?>">
-          </div>
-          <div class="col">
-            <label>Senha</label>
-            <input name="config[password]" type="password" value="<?= h($plugin['config']['password'] ?? '') ?>">
-          </div>
-        </div>
+        <button type="button" id="add-vcenter-server" class="btn secondary" style="margin-bottom:24px">+ Adicionar vCenter</button>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const vContainer = document.getElementById('vcenter-servers-container');
+            const vAddButton = document.getElementById('add-vcenter-server');
+            
+            if (vAddButton) {
+                vAddButton.addEventListener('click', function() {
+                    const idx = vContainer.querySelectorAll('.vcenter-server-item').length;
+                    const div = document.createElement('div');
+                    div.className = 'card vcenter-server-item';
+                    div.style.marginBottom = '16px';
+                    div.style.border = '1px solid var(--border)';
+                    div.innerHTML = `
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+                        <div style="font-weight:600">Servidor vCenter #${idx + 1}</div>
+                        <button type="button" class="btn danger small remove-vcenter-server" style="padding:4px 8px">Remover</button>
+                      </div>
+                      <div class="row">
+                        <div class="col">
+                          <label>Nome de Exibição (Ex: vCenter Matriz)</label>
+                          <input name="config[servers][${idx}][label]" placeholder="Um nome para você identificar este servidor no portal">
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col">
+                          <label>URL do vCenter</label>
+                          <input name="config[servers][${idx}][url]" placeholder="https://...">
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col">
+                          <label>Usuário</label>
+                          <input name="config[servers][${idx}][username]">
+                        </div>
+                        <div class="col">
+                          <label>Senha</label>
+                          <input name="config[servers][${idx}][password]" type="password">
+                        </div>
+                      </div>
+                    `;
+                    vContainer.appendChild(div);
+                    bindVcenterRemoves();
+                });
+            }
+
+            function bindVcenterRemoves() {
+                vContainer.querySelectorAll('.remove-vcenter-server').forEach(btn => {
+                    btn.onclick = function() {
+                        if (vContainer.querySelectorAll('.vcenter-server-item').length > 1) {
+                            btn.closest('.vcenter-server-item').remove();
+                        }
+                    };
+                });
+            }
+            bindVcenterRemoves();
+        });
+        </script>
 
       <?php elseif ($pluginName === 'veeam'): ?>
-        <div class="row">
-          <div class="col">
-            <label>Veeam Backup Enterprise Manager / VCSP API URL</label>
-            <input name="config[url]" value="<?= h($plugin['config']['url'] ?? '') ?>" placeholder="https://veeam.exemplo.com:9398/api">
-          </div>
+        <div id="veeam-servers-container">
+          <?php 
+          $servers = $plugin['config']['servers'] ?? [];
+          if (empty($servers)) {
+              // Migration/Initial state: convert old single config to new multi format if exists
+              if (!empty($plugin['config']['url'])) {
+                  $servers[] = [
+                      'type' => 'vbr',
+                      'label' => 'Servidor Principal',
+                      'url' => $plugin['config']['url'],
+                      'username' => $plugin['config']['username'] ?? '',
+                      'password' => $plugin['config']['password'] ?? ''
+                  ];
+              } else {
+                  $servers[] = ['type' => 'vbr', 'label' => '', 'url' => '', 'username' => '', 'password' => ''];
+              }
+          }
+          foreach ($servers as $idx => $srv): 
+          ?>
+            <div class="card veeam-server-item" style="margin-bottom:16px; border:1px solid var(--border)">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+                <div style="font-weight:600">Servidor #<?= $idx + 1 ?></div>
+                <button type="button" class="btn danger small remove-server" style="padding:4px 8px">Remover</button>
+              </div>
+              <div class="row">
+                <div class="col" style="flex:0 0 150px">
+                  <label>Tipo</label>
+                  <select name="config[servers][<?= $idx ?>][type]" class="btn" style="width:100%; background:var(--input-bg); cursor:pointer">
+                    <option value="vbr" <?= ($srv['type'] ?? '') === 'vbr' ? 'selected' : '' ?>>VBR (Enterprise Manager)</option>
+                    <option value="vcsp" <?= ($srv['type'] ?? '') === 'vcsp' ? 'selected' : '' ?>>VCSP (Service Provider)</option>
+                  </select>
+                </div>
+                <div class="col">
+                  <label>Identificador (Ex: DC-Principal)</label>
+                  <input name="config[servers][<?= $idx ?>][label]" value="<?= h($srv['label'] ?? '') ?>" placeholder="Nome para identificar este servidor">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col">
+                  <label>URL da API (Ex: https://veeam.exemplo.com:9398/api)</label>
+                  <input name="config[servers][<?= $idx ?>][url]" value="<?= h($srv['url'] ?? '') ?>" placeholder="https://...">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col">
+                  <label>Usuário</label>
+                  <input name="config[servers][<?= $idx ?>][username]" value="<?= h($srv['username'] ?? '') ?>">
+                </div>
+                <div class="col">
+                  <label>Senha</label>
+                  <input name="config[servers][<?= $idx ?>][password]" type="password" value="<?= h($srv['password'] ?? '') ?>">
+                </div>
+              </div>
+            </div>
+          <?php endforeach; ?>
         </div>
-        <div class="row">
-          <div class="col">
-            <label>Usuário da API</label>
-            <input name="config[username]" value="<?= h($plugin['config']['username'] ?? '') ?>">
-          </div>
-          <div class="col">
-            <label>Senha</label>
-            <input name="config[password]" type="password" value="<?= h($plugin['config']['password'] ?? '') ?>">
-          </div>
-        </div>
+        <button type="button" id="add-veeam-server" class="btn secondary" style="margin-bottom:24px">+ Adicionar Servidor (VBR ou VCSP)</button>
+
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.getElementById('veeam-servers-container');
+            const addButton = document.getElementById('add-veeam-server');
+            
+            addButton.addEventListener('click', function() {
+                const idx = container.querySelectorAll('.veeam-server-item').length;
+                const div = document.createElement('div');
+                div.className = 'card veeam-server-item';
+                div.style.marginBottom = '16px';
+                div.style.border = '1px solid var(--border)';
+                div.innerHTML = `
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+                    <div style="font-weight:600">Servidor #${idx + 1}</div>
+                    <button type="button" class="btn danger small remove-server" style="padding:4px 8px">Remover</button>
+                  </div>
+                  <div class="row">
+                    <div class="col" style="flex:0 0 150px">
+                      <label>Tipo</label>
+                      <select name="config[servers][${idx}][type]" class="btn" style="width:100%; background:var(--input-bg); cursor:pointer">
+                        <option value="vbr">VBR (Enterprise Manager)</option>
+                        <option value="vcsp">VCSP (Service Provider)</option>
+                      </select>
+                    </div>
+                    <div class="col">
+                      <label>Identificador</label>
+                      <input name="config[servers][${idx}][label]" placeholder="Nome para identificar este servidor">
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col">
+                      <label>URL da API</label>
+                      <input name="config[servers][${idx}][url]" placeholder="https://...">
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col">
+                      <label>Usuário</label>
+                      <input name="config[servers][${idx}][username]">
+                    </div>
+                    <div class="col">
+                      <label>Senha</label>
+                      <input name="config[servers][${idx}][password]" type="password">
+                    </div>
+                  </div>
+                `;
+                container.appendChild(div);
+                bindRemoves();
+            });
+
+            function bindRemoves() {
+                container.querySelectorAll('.remove-server').forEach(btn => {
+                    btn.onclick = function() {
+                        if (container.querySelectorAll('.veeam-server-item').length > 1) {
+                            btn.closest('.veeam-server-item').remove();
+                        } else {
+                            alert('Pelo menos um servidor deve ser configurado.');
+                        }
+                    };
+                });
+            }
+            bindRemoves();
+        });
+        </script>
 
       <?php elseif ($pluginName === 'acronis'): ?>
         <div class="row">
