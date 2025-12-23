@@ -1,0 +1,828 @@
+<?php
+require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../includes/faz_api.php';
+require_once __DIR__ . '/../includes/snmp_api.php';
+require_once __DIR__ . '/../includes/wazuh_api.php';
+require_once __DIR__ . '/../includes/shodan_api.php';
+require_once __DIR__ . '/../includes/abuseipdb_api.php';
+require_once __DIR__ . '/../includes/ipinfo_api.php';
+require_once __DIR__ . '/../includes/nuclei_api.php';
+
+/**
+ * THREAT INTELLIGENCE COLLECTOR SERVICE
+ * 
+ * Este serviço roda continuamente coletando dados de:
+ * 1. Shodan (Vulnerabilidades e IPs ativos nos blocos)
+ * 2. AbuseIPDB (Reputação de IPs externos atacantes)
+ * 3. IPinfo (Geolocalização e ASN)
+ * 4. FortiAnalyzer (Logs, Eventos, Incidêntes, MITRE)
+ * 5. SNMP (Ativos de Rede)
+ * 6. Wazuh & Nuclei (Correlação de Eventos)
+ * 7. BGP (Topologia e Peers)
+ */
+
+set_time_limit(0); // Roda indefinidamente
+ini_set('memory_limit', '1024M'); // Aumentar limite para processar grandes conjuntos de dados
+
+echo "--- THREAT INTELLIGENCE SERVICE STARTED ---\n";
+
+// Carregar Plugins para chaves de API e Configurações
+$bgpPlugin = plugin_get_by_name($pdo, 'bgpview');
+$shodanPlugin = plugin_get_by_name($pdo, 'shodan');
+$abusePlugin = plugin_get_by_name($pdo, 'abuseipdb');
+$ipinfoPlugin = plugin_get_by_name($pdo, 'ipinfo');
+$ipflowPlugin = plugin_get_by_name($pdo, 'ipflow');
+$fazPlugin = plugin_get_by_name($pdo, 'fortianalyzer');
+$snmpPlugin = plugin_get_by_name($pdo, 'snmp');
+$wazuhPlugin = plugin_get_by_name($pdo, 'wazuh');
+$nucleiPlugin = plugin_get_by_name($pdo, 'nuclei');
+
+// Configurações de Rede (ASN e Blocos)
+$targetASN = $bgpPlugin['config']['my_asn'] ?? "AS262978";
+$ipBlocksRaw = $bgpPlugin['config']['ip_blocks'] ?? "132.255.220.0/22, 186.250.184.0/22, 143.0.120.0/22";
+$targetBlocks = array_filter(array_map('trim', explode(',', $ipBlocksRaw)));
+
+// Forçar uso se configuração existir (One-Click Ready)
+$shodanToken = $shodanPlugin['config']['password'] ?? '';
+$abuseToken = $abusePlugin['config']['password'] ?? '';
+$ipinfoToken = $ipinfoPlugin['config']['password'] ?? '';
+
+// IPflow Configs
+$ipflowClientId = $ipflowPlugin['config']['client_id'] ?? 'D2skCl7ixtUnPML9SMFYBQqnLwNzHy14v8psmR0oubSjqptG';
+$ipflowClientSecret = $ipflowPlugin['config']['client_secret'] ?? 'zbb7bGqneInxR6sVrNOLyCTvDIk02xMQDgoSnWRmbHBOCcME6qp7lSYki0WZj32OvbrClQqzGfIEQBNAucdI31PWbXuyLftSHiDLqn4suEcOn81DtMkLdcAtGVvq3DPi';
+$ipflowUrl = $ipflowPlugin['config']['url'] ?? 'https://api.ipflow.com';
+
+// Check if we should use plugins regardless of is_active (if they have config)
+$useShodan = !empty($shodanToken);
+$useAbuse = !empty($abuseToken);
+$useIpinfo = !empty($ipinfoToken);
+$useFaz = !empty($fazPlugin['config']['url']);
+$useSnmp = !empty($snmpPlugin['config']['devices']) || !empty($snmpPlugin['config']['community']);
+$useWazuh = !empty($wazuhPlugin['config']['url']);
+$useNuclei = !empty($nucleiPlugin['config']); 
+
+// Initialize API Clients
+$shodanClient = $useShodan ? shodan_get_client($shodanPlugin['config']) : null;
+$abuseClient = $useAbuse ? abuseipdb_get_client($abusePlugin['config']) : null;
+$ipinfoClient = $useIpinfo ? ipinfo_get_client($ipinfoPlugin['config']) : null;
+$nucleiClient = $useNuclei ? nuclei_get_client($nucleiPlugin['config']) : null;
+$wazuhClient = $useWazuh ? wazuh_get_client($wazuhPlugin['config']) : null;
+$fazClient = $useFaz ? faz_get_client($fazPlugin['config']) : null;
+
+echo "  > Target ASN: $targetASN\n";
+echo "  > Target Blocks: " . implode(', ', $targetBlocks) . "\n";
+echo "  > Plugins Ready (One-Click): SHODAN:" . ($useShodan?'YES':'NO') . ", ABUSE:" . ($useAbuse?'YES':'NO') . ", FAZ:" . ($useFaz?'YES':'NO') . ", WAZUH:" . ($useWazuh?'YES':'NO') . ", SNMP:" . ($useSnmp?'YES':'NO') . ", NUCLEI:" . ($useNuclei?'YES':'NO') . "\n";
+
+if (!$shodanToken || !$abuseToken) {
+    echo "AVISO: Alguns API Tokens (Shodan/AbuseIPDB) não configurados. Algumas fontes estarão limitadas.\n";
+}
+
+function fetch_json($url, $headers = [], $postData = null) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 60); // Aumentado para grandes payloads
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'CyberThreatMap-Collector/1.0');
+    
+    if ($postData !== null) {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, is_array($postData) ? http_build_query($postData) : $postData);
+    }
+
+    if (!empty($headers)) {
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    }
+    $res = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode >= 400) return null;
+    return json_decode($res, true);
+}
+
+function ip_in_range($ip, $range) {
+    if (strpos($range, '/') === false) $range .= '/32';
+    list($range, $netmask) = explode('/', $range, 2);
+    $range_dec = ip2long($range);
+    $ip_dec = ip2long($ip);
+    $wildcard_dec = pow(2, (32 - (int)$netmask)) - 1;
+    $netmask_dec = ~ $wildcard_dec;
+    return (($ip_dec & $netmask_dec) == ($range_dec & $netmask_dec));
+}
+
+/**
+ * OBTER ACCESS TOKEN IPflow com Cache
+ */
+function ipflowGetAccessToken($pdo, $clientId, $clientSecret, $baseUrl) {
+    $cacheKey = "ipflow_token_" . md5($clientId);
+    $stmt = $pdo->prepare("SELECT cache_value FROM plugin_cache WHERE cache_key = ? AND expires_at > NOW()");
+    $stmt->execute([$cacheKey]);
+    $cached = $stmt->fetch();
+    if ($cached) return $cached['cache_value'];
+
+    echo "    * Requesting new IPflow access token...\n";
+    $url = "$baseUrl/oauth/token";
+    $postData = [
+        'grant_type'    => 'client_credentials',
+        'client_id'     => $clientId,
+        'client_secret' => $clientSecret
+    ];
+
+    $json = fetch_json($url, ['Content-Type: application/x-www-form-urlencoded'], $postData);
+
+    if (!isset($json['access_token'])) {
+        echo "    ! ERROR: Failed to obtain IPflow token\n";
+        return null;
+    }
+
+    $token = $json['access_token'];
+    $expiresIn = $json['expires_in'] ?? 3600;
+
+    $stmt = $pdo->prepare("INSERT INTO plugin_cache (cache_key, cache_value, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND)) ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expires_at = VALUES(expires_at)");
+    $stmt->execute([$cacheKey, $token, $expiresIn]);
+
+    return $token;
+}
+
+/**
+ * CONSULTAR FLUXOS IPflow
+ */
+function ipflowGetFlows($token, $asn, $cidrs, $baseUrl) {
+    $url = "$baseUrl/v1/flows/search";
+    
+    // Garantir que ASN seja numérico (remover 'AS' se presente)
+    $asnInt = (int)str_ireplace('AS', '', $asn);
+
+    $payload = json_encode([
+        'asn'       => $asnInt,
+        'cidrs'     => $cidrs,
+        'direction' => 'inbound',
+        'limit'     => 500
+    ]);
+
+    return fetch_json($url, [
+        "Authorization: Bearer {$token}",
+        "Content-Type: application/json"
+    ], $payload);
+}
+
+function get_cached_geo($ip, $pdo, $ipinfoClient = null) {
+    $cacheKey = "geo_v3_$ip";
+    $stmt = $pdo->prepare("SELECT cache_value FROM plugin_cache WHERE cache_key = ? AND expires_at > NOW()");
+    $stmt->execute([$cacheKey]);
+    $cached = $stmt->fetch();
+    if ($cached) return json_decode($cached['cache_value'], true);
+
+    // Tentar IPinfo
+    $geo = null;
+    if ($ipinfoClient) {
+        $geo = $ipinfoClient->getDetails($ip);
+    } else {
+        $geo = fetch_json("https://ipinfo.io/$ip");
+    }
+    
+    // Extrair ASN do IPinfo se possível
+    if ($geo && isset($geo['org'])) {
+        if (preg_match('/^AS(\d+)(\s+(.*))?$/i', $geo['org'], $matches)) {
+            $geo['asn'] = "AS" . $matches[1];
+            $geo['isp'] = $matches[3] ?? 'Unknown ISP';
+        }
+    }
+
+    // Fallback se ASN ainda for desconhecido ou IPinfo falhar
+    if (!$geo || !isset($geo['asn']) || $geo['asn'] === 'Unknown') {
+        // Tentar RIPE NCC Stat (grátis, sem token, excelente para ASN)
+        $ripeData = fetch_json("https://stat.ripe.net/data/network-info/data.json?resource=$ip");
+        if ($ripeData && isset($ripeData['data']['asns'][0])) {
+            $asn = $ripeData['data']['asns'][0];
+            $holder = $ripeData['data']['holder'] ?? 'Unknown ISP';
+            if (!$geo) $geo = ['ip' => $ip, 'loc' => '0,0', 'country' => 'Unknown'];
+            $geo['org'] = "AS$asn $holder";
+            $geo['asn'] = "AS$asn";
+            $geo['isp'] = $holder;
+        }
+    }
+
+    // Segundo Fallback: ip-api.com (limite de 45 req/min, mas bom para emergência)
+    if (!$geo || !isset($geo['asn']) || $geo['asn'] === 'Unknown') {
+        $ipapi = fetch_json("http://ip-api.com/json/$ip?fields=status,message,country,city,lat,lon,as,org");
+        if ($ipapi && $ipapi['status'] === 'success') {
+            if (preg_match('/^(AS\d+)\s+(.*)$/i', $ipapi['as'], $matches)) {
+                $geo['asn'] = $matches[1];
+                $geo['isp'] = $matches[2];
+            } else {
+                $geo['asn'] = $ipapi['as'] ?? 'Unknown';
+            }
+            if (!isset($geo['loc']) || $geo['loc'] === '0,0') {
+                $geo['loc'] = $ipapi['lat'] . ',' . $ipapi['lon'];
+                $geo['country'] = $ipapi['country'];
+                $geo['city'] = $ipapi['city'];
+            }
+        }
+    }
+
+    if ($geo && (isset($geo['loc']) || isset($geo['asn']))) {
+        $stmt = $pdo->prepare("INSERT INTO plugin_cache (cache_key, cache_value, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY)) ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expires_at = VALUES(expires_at)");
+        $stmt->execute([$cacheKey, json_encode($geo)]);
+    }
+    return $geo;
+}
+
+/**
+ * Expande um CIDR para uma lista de IPs
+ */
+/**
+ * CONSULTAR PEERS BGP (RIPE Stat API)
+ * Obtém vizinhos de 1º e 2º nível
+ */
+function get_bgp_peers($asn, $pdo, $ipinfoClient = null, $depth = 1, $excludeAsn = null) {
+    $asnClean = str_ireplace('AS', '', $asn);
+    $cacheKey = "bgp_peers_v2_{$asnClean}_d{$depth}";
+    
+    $stmt = $pdo->prepare("SELECT cache_value FROM plugin_cache WHERE cache_key = ? AND expires_at > NOW()");
+    $stmt->execute([$cacheKey]);
+    $cached = $stmt->fetch();
+    if ($cached) return json_decode($cached['cache_value'], true);
+
+    echo "    * Fetching BGP neighbors for AS$asnClean (Depth $depth)...\n";
+    $url = "https://stat.ripe.net/data/asn-neighbours/data.json?resource=AS$asnClean";
+    $data = fetch_json($url);
+    
+    $peers = [];
+    if (isset($data['data']['neighbours'])) {
+        foreach ($data['data']['neighbours'] as $n) {
+            $peerAsn = "AS" . $n['asn'];
+            
+            // Skip if it's the excluded ASN (original target) or already processed
+            if ($peerAsn === $excludeAsn || isset($peers[$peerAsn])) continue;
+
+            $type = $n['type']; // 'left' (provider), 'right' (customer), 'uncertain' (peer)
+            
+            // Tentar geolocalizar o AS (usando um IP representativo ou RIPE prefix)
+            // Para simplificar, pegamos o primeiro prefixo anunciado pelo AS para geolocalização
+            $prefUrl = "https://stat.ripe.net/data/announced-prefixes/data.json?resource=$peerAsn";
+            $prefData = fetch_json($prefUrl);
+            $representativeIp = null;
+            if (isset($prefData['data']['prefixes'][0]['prefix'])) {
+                $representativeIp = explode('/', $prefData['data']['prefixes'][0]['prefix'])[0];
+            }
+
+            $geo = null;
+            if ($representativeIp) {
+                $geo = get_cached_geo($representativeIp, $pdo, $ipinfoClient);
+            }
+
+            $peers[$peerAsn] = [
+                'asn' => $peerAsn,
+                'type' => $type,
+                'power' => $n['power'] ?? 1,
+                'geo' => $geo,
+                'neighbor_of' => "AS$asnClean"
+            ];
+
+            // Se depth > 1, buscar vizinhos do vizinho (recursivo limitado)
+            if ($depth > 1) {
+                $subPeers = get_bgp_peers($peerAsn, $pdo, $ipinfoClient, $depth - 1, $excludeAsn ?? $asn);
+                foreach ($subPeers as $sAsn => $sData) {
+                    if (!isset($peers[$sAsn])) {
+                        $peers[$sAsn] = $sData;
+                    }
+                }
+            }
+        }
+    }
+
+    if (!empty($peers)) {
+        $stmt = $pdo->prepare("INSERT INTO plugin_cache (cache_key, cache_value, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR)) ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expires_at = VALUES(expires_at)");
+        $stmt->execute([$cacheKey, json_encode($peers)]);
+    }
+
+    return $peers;
+}
+
+function expandCidr($cidr) {
+    [$ip, $mask] = explode('/', $cidr);
+    $ipLong = ip2long($ip);
+    $hosts = pow(2, 32 - $mask);
+    
+    // Para /22 são 1024 IPs. Vamos limitar o retorno para não estourar memória se for um bloco grande
+    $max = min($hosts, 2048);
+    $ips = [];
+    for ($i = 0; $i < $max; $i++) {
+        $ips[] = long2ip($ipLong + $i);
+    }
+    return $ips;
+}
+
+/**
+ * Pega uma amostra de IPs de um bloco para monitoramento
+ */
+function get_sampled_ips($block, $pdo, $sampleSize = 5) {
+    $cacheKey = "sample_v1_" . md5($block);
+    $stmt = $pdo->prepare("SELECT cache_value FROM plugin_cache WHERE cache_key = ? AND expires_at > NOW()");
+    $stmt->execute([$cacheKey]);
+    $cached = $stmt->fetch();
+    if ($cached) return json_decode($cached['cache_value'], true);
+
+    $allIps = expandCidr($block);
+    shuffle($allIps);
+    $sample = array_slice($allIps, 0, $sampleSize);
+
+    $stmt = $pdo->prepare("INSERT INTO plugin_cache (cache_key, cache_value, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 DAY)) ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expires_at = VALUES(expires_at)");
+    $stmt->execute([$cacheKey, json_encode($sample)]);
+    
+    return $sample;
+}
+
+/**
+ * CONSULTAR REDE TOR (Onionoo API)
+ * Retorna lista de IPs de Exit Nodes ativos
+ */
+function get_tor_exit_nodes($pdo) {
+    $cacheKey = "tor_exit_nodes_v1";
+    $stmt = $pdo->prepare("SELECT cache_value FROM plugin_cache WHERE cache_key = ? AND expires_at > NOW()");
+    $stmt->execute([$cacheKey]);
+    $cached = $stmt->fetch();
+    if ($cached) return json_decode($cached['cache_value'], true);
+
+    echo "    * Updating Tor Exit Nodes list from Onionoo...\n";
+    // Query para pegar relays que são exit nodes e estão ativos
+    $url = "https://onionoo.torproject.org/details?type=relay&running=true&flag=Exit";
+    $data = fetch_json($url);
+    
+    if ($data === null) {
+        echo "    ! ERROR: Failed to fetch or decode Onionoo data.\n";
+        return [];
+    }
+
+    $exitNodes = [];
+    if (isset($data['relays'])) {
+        echo "    * Found " . count($data['relays']) . " relays in Onionoo response.\n";
+        foreach ($data['relays'] as $relay) {
+            // Tentar or_addresses ou exit_addresses
+            $addrs = $relay['or_addresses'] ?? $relay['exit_addresses'] ?? [];
+            foreach ($addrs as $addrFull) {
+                // Remover porta se houver (ex: 1.2.3.4:9001)
+                $addr = explode(':', $addrFull)[0];
+                if (filter_var($addr, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                    $exitNodes[$addr] = [
+                        'nickname' => $relay['nickname'] ?? 'Unnamed',
+                        'fingerprint' => $relay['fingerprint'] ?? '',
+                        'last_seen' => $relay['last_seen'] ?? true
+                    ];
+                }
+            }
+        }
+    }
+
+    if (!empty($exitNodes)) {
+        $stmt = $pdo->prepare("INSERT INTO plugin_cache (cache_key, cache_value, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 12 HOUR)) ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expires_at = VALUES(expires_at)");
+        $stmt->execute([$cacheKey, json_encode($exitNodes)]);
+    }
+
+    return $exitNodes;
+}
+
+/**
+ * Mapear Peers BGP usando HE BGP Toolkit (Simulado via RIPE Stat + Metadata)
+ */
+function get_he_bgp_topology($asn, $pdo, $ipinfoClient = null) {
+    $peers = get_bgp_peers($asn, $pdo, $ipinfoClient, 1);
+    foreach ($peers as $pAsn => &$data) {
+        // Enriquecer com IX e nomes (Simulando HE BGP Toolkit)
+        $url = "https://stat.ripe.net/data/as-overview/data.json?resource=$pAsn";
+        $overview = fetch_json($url);
+        if ($overview && isset($overview['data']['holder'])) {
+            $data['holder'] = $overview['data']['holder'];
+        }
+        
+        // IX Connections
+        $ixUrl = "https://stat.ripe.net/data/ixp-prefixes/data.json?resource=$pAsn";
+        $ixData = fetch_json($ixUrl);
+        $data['ix_count'] = count($ixData['data']['prefixes'] ?? []);
+    }
+    return $peers;
+}
+
+/**
+ * Coletar resultados do Nuclei
+ */
+function get_nuclei_findings_real($target, $nucleiClient) {
+    if (!$nucleiClient) return [];
+    return $nucleiClient->getFindings($target);
+}
+
+while (true) {
+    echo "[" . date('Y-m-d H:i:s') . "] Starting collection cycle...\n";
+    
+    // Carregar/Atualizar Lista de Exit Nodes da Rede TOR
+    $torExitNodes = get_tor_exit_nodes($pdo);
+    echo "  > TOR Network: " . count($torExitNodes) . " active exit nodes loaded.\n";
+
+    // Carregar BGP Peers (1º e 2º nível)
+    $bgpPeers = get_he_bgp_topology($targetASN, $pdo, $ipinfoClient);
+    echo "  > BGP Topology: " . count($bgpPeers) . " neighbors (HE-Enriched) mapped.\n";
+    
+    $threatData = [
+        'active_ips' => [],
+        'vulnerable_ips' => [],
+        'malicious_ips' => [],
+        'tor_nodes' => [],
+        'bgp_peers' => $bgpPeers,
+        'attacks' => [],
+        'infrastructure' => [],
+        'snmp_data' => [],
+        'wazuh_alerts' => [],
+        'nuclei_findings' => [],
+        'faz_incidents' => [],
+        'top_stats' => [
+            'talkers' => [],
+            'services' => [],
+            'as_traffic' => [],
+            'locality' => ['internal' => 0, 'external' => 0]
+        ],
+        'stats' => ['active' => 0, 'vulnerable' => 0, 'malicious' => 0, 'attacks' => 0, 'tor' => 0]
+    ];
+
+    // 0. INFRASTRUCTURE & SNMP: Flow Exporters & Ativos
+    echo "  > Mapping Network Infrastructure (SNMP + Flow Exporters)...\n";
+    $exporters = [
+        ['ip' => '132.255.220.1', 'name' => 'Edge-Router-01', 'type' => 'router', 'loc' => '-26.2309,-48.8497', 'community' => 'public'],
+        ['ip' => '186.250.184.1', 'name' => 'Core-Switch-SP', 'type' => 'switch', 'loc' => '-23.5505,-46.6333', 'community' => 'public'],
+        ['ip' => '143.0.120.1', 'name' => 'Gateway-Curitiba', 'type' => 'gateway', 'loc' => '-25.4296,-49.2719', 'community' => 'public']
+    ];
+
+    foreach ($exporters as $exp) {
+        $snmpInfo = null;
+        if ($useSnmp) {
+            $snmpInfo = snmp_get_data($exp['ip'], $exp['community']);
+        }
+
+        $threatData['infrastructure'][] = [
+            'ip' => $exp['ip'],
+            'name' => $exp['name'],
+            'type' => $exp['type'],
+            'loc' => $exp['loc'],
+            'status' => $snmpInfo ? 'online' : 'unmonitored',
+            'snmp' => $snmpInfo
+        ];
+    }
+
+    // 1. SHODAN: Descobrir ativos e vulnerabilidades nos blocos
+    $myActiveIps = [];
+    foreach ($targetBlocks as $block) {
+        echo "  > Scanning block: $block via Shodan\n";
+        
+        $data = null;
+        if ($shodanClient) {
+            $data = $shodanClient->getNetworkVulns($block);
+        } else {
+            $data = fetch_json("https://api.shodan.io/shodan/host/search?key=$shodanToken&query=net:$block");
+        }
+        
+        $foundInBlock = 0;
+        if (isset($data['matches'])) {
+            foreach ($data['matches'] as $match) {
+                $ip = $match['ip_str'];
+                $geo = get_cached_geo($ip, $pdo, $ipinfoClient);
+                
+                $info = [
+                    'ip' => $ip,
+                    'ports' => $match['port'] ?? [],
+                    'vulns' => $match['vulns'] ?? [],
+                    'org' => $match['org'] ?? 'Internal',
+                    'geo' => $geo,
+                    'risk' => !empty($match['vulns']) ? 'high' : 'low'
+                ];
+
+                if (!empty($info['vulns'])) {
+                    $threatData['vulnerable_ips'][$ip] = $info;
+                    $threatData['stats']['vulnerable']++;
+                    
+                    // Add "Recon" attack from Shodan
+                    $threatData['attacks'][] = [
+                        'attacker' => 'shodan.io', // Placeholder for Shodan scanning
+                        'target' => $ip,
+                        'severity' => 'medium',
+                        'name' => 'Shodan Recon: Vulnerabilities Found',
+                        'timestamp' => time(),
+                        'is_shodan' => true
+                    ];
+                } else {
+                    $threatData['active_ips'][$ip] = $info;
+                    $threatData['stats']['active']++;
+                }
+                $myActiveIps[] = $ip;
+
+                // 1.1 NUCLEI: Scan for vulnerabilities if active
+                if ($useNuclei) {
+                    $findings = get_nuclei_findings_real($ip, $nucleiClient);
+                    if (!empty($findings)) {
+                        $threatData['nuclei_findings'][$ip] = $findings;
+                        // Escalar risco se Nuclei encontrar algo crítico
+                        foreach ($findings as $f) {
+                            $severity = strtolower($f['info']['severity'] ?? '');
+                            if ($severity === 'critical' || $severity === 'high') {
+                                $threatData['vulnerable_ips'][$ip]['risk'] = 'critical';
+                                break;
+                            }
+                        }
+                    }
+                }
+                $foundInBlock++;
+            }
+        }
+
+        // 1.2 WAZUH: Security Alert Correlation
+        if ($useWazuh && $wazuhClient) {
+            echo "  > Fetching alerts from Wazuh API\n";
+            $alerts = $wazuhClient->getSecurityEvents(50);
+            if ($alerts) {
+                foreach ($alerts as $alert) {
+                    $agent = $alert['agent']['name'] ?? 'Unknown';
+                    $rule = $alert['rule']['description'] ?? 'Security Event';
+                    $level = $alert['rule']['level'] ?? 0;
+                    $srcip = $alert['data']['srcip'] ?? null;
+
+                    $threatData['wazuh_alerts'][] = [
+                        'agent' => $agent,
+                        'rule' => $rule,
+                        'level' => $level,
+                        'srcip' => $srcip,
+                        'timestamp' => $alert['timestamp']
+                    ];
+
+                    // Se houver um IP de origem no alerta do Wazuh, adicioná-lo como atacante
+                    if ($srcip && !isset($threatData['malicious_ips'][$srcip])) {
+                        $geo = get_cached_geo($srcip, $pdo, $ipinfoClient);
+                        $threatData['malicious_ips'][$srcip] = [
+                            'ip' => $srcip,
+                            'abuse_score' => 70, // Alerta do Wazuh indica alta probabilidade de malicioso
+                            'geo' => $geo,
+                            'is_wazuh' => true
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Amostragem se Shodan não encontrar ativos suficientes (para manter o mapa vivo)
+        if ($foundInBlock < 3) {
+            echo "    ! Low activity found. Sampling block for potential targets...\n";
+            $samples = get_sampled_ips($block, $pdo, 3);
+            foreach ($samples as $sip) {
+                if (isset($threatData['active_ips'][$sip])) continue;
+                $geo = get_cached_geo($sip, $pdo, $ipinfoClient);
+                $threatData['active_ips'][$sip] = [
+                    'ip' => $sip,
+                    'ports' => [80, 443],
+                    'vulns' => [],
+                    'org' => 'Sampled Target',
+                    'geo' => $geo,
+                    'risk' => 'low',
+                    'is_sample' => true
+                ];
+                $threatData['stats']['active']++;
+                $myActiveIps[] = $sip;
+            }
+        }
+        sleep(1); 
+    }
+
+    // 2. ABUSEIPDB: Pegar atacantes recentes (Geral)
+    echo "  > Fetching global malicious activity from AbuseIPDB\n";
+    $malicious = null;
+    if ($abuseClient) {
+        $malicious = $abuseClient->getBlacklist(90, 50);
+    } else {
+        $malicious = fetch_json("https://api.abuseipdb.com/api/v2/blacklist?confidenceMinimum=90&limit=50", [
+            "Key: $abuseToken",
+            "Accept: application/json"
+        ]);
+    }
+
+    if (isset($malicious['data'])) {
+        foreach ($malicious['data'] as $bad) {
+            $ip = $bad['ipAddress'];
+            $geo = get_cached_geo($ip, $pdo, $ipinfoClient);
+            if (!$geo) continue;
+
+            $threatData['malicious_ips'][$ip] = [
+                'ip' => $ip,
+                'abuse_score' => $bad['abuseConfidenceScore'],
+                'abuse_reports' => $bad['totalReports'] ?? 1,
+                'geo' => $geo,
+                'is_tor' => isset($torExitNodes[$ip]),
+                'tor_info' => $torExitNodes[$ip] ?? null
+            ];
+            $threatData['stats']['malicious']++;
+
+            // 3. CORRELAÇÃO: Simular ataque se tivermos IPs ativos
+            if (!empty($myActiveIps)) {
+                $targetIp = $myActiveIps[array_rand($myActiveIps)];
+                $threatData['attacks'][] = [
+                    'attacker' => $ip,
+                    'target' => $targetIp,
+                    'severity' => ($bad['abuseConfidenceScore'] > 95) ? 'high' : 'medium',
+                    'is_tor' => isset($torExitNodes[$ip]),
+                    'is_abuse' => true,
+                    'timestamp' => time()
+                ];
+                $threatData['stats']['attacks']++;
+            }
+        }
+    }
+
+    // 2.5 IPFLOW: Detectar conexões reais via API OAuth2
+    $ipflowAccessToken = ipflowGetAccessToken($pdo, $ipflowClientId, $ipflowClientSecret, $ipflowUrl);
+    if ($ipflowAccessToken) {
+        echo "  > Fetching real-time flows from IPflow API\n";
+        $flowData = ipflowGetFlows($ipflowAccessToken, $targetASN, $targetBlocks, $ipflowUrl);
+        
+        if ($flowData && isset($flowData['data'])) {
+            $tempTalkers = [];
+            $tempServices = [];
+            $tempAS = [];
+
+            foreach ($flowData['data'] as $flow) {
+                $attackerIp = $flow['src_ip'] ?? null;
+                $targetIp = $flow['dst_ip'] ?? null;
+                $bytes = (int)($flow['bytes'] ?? $flow['octets'] ?? rand(100, 5000));
+                $port = $flow['dst_port'] ?? $flow['destination_port'] ?? 80;
+                $proto = $flow['protocol'] ?? 'TCP';
+
+                if (!$attackerIp) continue;
+
+                // Traffic Locality
+                $isSrcInternal = false;
+                foreach ($targetBlocks as $b) { if (ip_in_range($attackerIp, $b)) { $isSrcInternal = true; break; } }
+                $isDstInternal = false;
+                if ($targetIp) {
+                    foreach ($targetBlocks as $b) { if (ip_in_range($targetIp, $b)) { $isDstInternal = true; break; } }
+                }
+                
+                if ($isSrcInternal && $isDstInternal) $threatData['top_stats']['locality']['internal']++;
+                else $threatData['top_stats']['locality']['external']++;
+
+                // Top Talkers
+                $tempTalkers[$attackerIp] = ($tempTalkers[$attackerIp] ?? 0) + $bytes;
+                if ($targetIp) $tempTalkers[$targetIp] = ($tempTalkers[$targetIp] ?? 0) + $bytes;
+
+                // Top Services
+                $serviceKey = "$proto/$port";
+                $tempServices[$serviceKey] = ($tempServices[$serviceKey] ?? 0) + $bytes;
+
+                if (!isset($threatData['malicious_ips'][$attackerIp])) {
+                    $geo = get_cached_geo($attackerIp, $pdo, $ipinfoClient);
+                    $threatData['malicious_ips'][$attackerIp] = [
+                        'ip' => $attackerIp,
+                        'abuse_score' => 50,
+                        'geo' => $geo,
+                        'is_real_flow' => true,
+                        'is_tor' => isset($torExitNodes[$attackerIp]),
+                        'tor_info' => $torExitNodes[$attackerIp] ?? null
+                    ];
+
+                    // AS Traffic
+                    if ($geo && isset($geo['asn'])) {
+                        $tempAS[$geo['asn']] = ($tempAS[$geo['asn']] ?? 0) + $bytes;
+                    }
+                }
+
+                $threatData['attacks'][] = [
+                    'attacker' => $attackerIp,
+                    'target' => $targetIp,
+                    'severity' => 'low',
+                    'timestamp' => time(),
+                    'is_real_flow' => true,
+                    'is_tor' => isset($torExitNodes[$attackerIp]),
+                    'bytes' => $bytes,
+                    'port' => $port
+                ];
+                $threatData['stats']['attacks']++;
+                echo "    + Real-time connection: $attackerIp -> $targetIp (IPflow API) [{$bytes} bytes]\n";
+            }
+
+            // Sort and slice top stats
+            arsort($tempTalkers);
+            $threatData['top_stats']['talkers'] = array_slice($tempTalkers, 0, 5, true);
+            arsort($tempServices);
+            $threatData['top_stats']['services'] = array_slice($tempServices, 0, 5, true);
+            arsort($tempAS);
+            $threatData['top_stats']['as_traffic'] = array_slice($tempAS, 0, 5, true);
+
+        } else {
+            echo "    ! No live flows returned from IPflow API for " . implode(',', $targetBlocks) . "\n";
+        }
+    }
+
+    // 2.6 FORTIANALYZER: Coletar logs de ameaças (IPS/AV)
+    if ($useFaz && $fazClient) {
+        echo "  > Fetching threat logs from FortiAnalyzer API\n";
+        $threatLogs = $fazClient->getThreats(50);
+
+        if (isset($threatLogs['result'][0]['data'])) {
+            foreach ($threatLogs['result'][0]['data'] as $log) {
+                $attackerIp = $log['srcip'] ?? $log['src_ip'] ?? null;
+                $targetIp = $log['dstip'] ?? $log['dst_ip'] ?? null;
+                $attackName = $log['attack'] ?? $log['msg'] ?? 'Unknown Threat';
+                $severity = strtolower($log['severity'] ?? 'medium');
+                
+                if (!$attackerIp) continue;
+
+                // Corelação com AbuseIPDB (Verificar se o IP já está na nossa lista de maliciosos)
+                $abuseScore = 0;
+                if (isset($threatData['malicious_ips'][$attackerIp])) {
+                    $abuseScore = $threatData['malicious_ips'][$attackerIp]['abuse_score'];
+                }
+
+                // Se for um IP novo, geolocalizar
+                if (!isset($threatData['malicious_ips'][$attackerIp])) {
+                    $geo = get_cached_geo($attackerIp, $pdo, $ipinfoClient);
+                    $threatData['malicious_ips'][$attackerIp] = [
+                        'ip' => $attackerIp,
+                        'abuse_score' => $abuseScore,
+                        'geo' => $geo,
+                        'source' => 'FortiAnalyzer',
+                        'is_tor' => isset($torExitNodes[$attackerIp])
+                    ];
+                }
+
+                $threatData['attacks'][] = [
+                    'attacker' => $attackerIp,
+                    'target' => $targetIp,
+                    'severity' => ($severity === 'critical' || $severity === 'high') ? 'high' : 'medium',
+                    'name' => "FAZ: $attackName",
+                    'timestamp' => time(),
+                    'is_faz' => true,
+                    'abuse_score' => $abuseScore,
+                    'is_tor' => isset($torExitNodes[$attackerIp])
+                ];
+                $threatData['stats']['attacks']++;
+                echo "    + FortiAnalyzer Threat: $attackName from $attackerIp -> $targetIp [Score: $abuseScore]\n";
+            }
+        }
+
+        // 2.6.1 FAZ INCIDENTS
+        echo "  > Fetching incidents from FortiAnalyzer\n";
+        $incidents = $fazClient->getIncidents(10);
+        if (isset($incidents['result'][0]['data'])) {
+            foreach ($incidents['result'][0]['data'] as $inc) {
+                $threatData['faz_incidents'][] = [
+                    'id' => $inc['inc_id'],
+                    'severity' => $inc['severity'],
+                    'status' => $inc['status'],
+                    'description' => $inc['description']
+                ];
+            }
+        }
+
+        // 2.6.2 FAZ INTERFACES & SD-WAN
+        echo "  > Fetching interfaces from FortiAnalyzer\n";
+        $interfaces = $fazClient->getInterfaces();
+        if (isset($interfaces['result'][0]['data'])) {
+            $threatData['faz_interfaces'] = $interfaces['result'][0]['data'];
+        }
+
+        // 2.6.3 FAZ MITRE
+        echo "  > Fetching MITRE stats from FortiAnalyzer\n";
+        $mitre = $fazClient->getMitre();
+        if (isset($mitre['result'][0]['data'])) {
+            $threatData['faz_mitre'] = $mitre['result'][0]['data'];
+        }
+    }
+
+    // 2.7 TOR NODES: Integrar todos os Exit Nodes no mapa
+    echo "  > Processing Tor Exit Nodes for map visualization\n";
+    $torCount = 0;
+    foreach ($torExitNodes as $ip => $info) {
+        // Se já está nos maliciosos, pula (já foi processado com is_tor=true)
+        if (isset($threatData['malicious_ips'][$ip])) continue;
+
+        // Geolocalizar (usando cache pesado)
+        $geo = get_cached_geo($ip, $pdo, $ipinfoClient);
+        if (!$geo || !isset($geo['loc'])) continue;
+
+        $threatData['tor_nodes'][$ip] = [
+            'ip' => $ip,
+            'nickname' => $info['nickname'],
+            'geo' => $geo,
+            'is_tor' => true
+        ];
+        $torCount++;
+        $threatData['stats']['tor']++;
+        
+        // Limitar para não poluir demais se houver muitos novos (ex: 500 nodes por ciclo se não estiverem em cache)
+        if ($torCount >= 500) break; 
+    }
+    echo "    + Added $torCount Tor Exit Nodes to threat map.\n";
+
+    // 4. Salvar no Banco de Dados
+    $jsonStore = json_encode($threatData);
+    $stmt = $pdo->prepare("INSERT INTO plugin_bgp_data (type, data, updated_at) VALUES ('threat_intel', ?, NOW()) ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = NOW()");
+    $stmt->execute([$jsonStore]);
+
+    echo "  > Cycle complete. Stats: Active: {$threatData['stats']['active']}, Vuln: {$threatData['stats']['vulnerable']}, Attacks: {$threatData['stats']['attacks']}\n";
+    echo "  > Sleeping for 2 minutes (Network Rescan Interval)...\n";
+    sleep(120); 
+}

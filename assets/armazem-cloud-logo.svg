@@ -1,0 +1,16 @@
+<svg width="160" height="32" viewBox="0 0 160 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">Armazém Cloud</title>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#27c4a8"/>
+      <stop offset="100%" stop-color="#19a38a"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="4" width="40" height="24" rx="6" fill="#050b11"/>
+  <path d="M8 22L16 8l8 14H8z" fill="url(#g)"/>
+  <circle cx="26" cy="12" r="3" fill="#27c4a8"/>
+  <text x="48" y="21" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif" font-size="14" fill="#e6eef6">
+    Armazém Cloud
+  </text>
+</svg>
+
