@@ -98,6 +98,24 @@ render_header('Configurar Plugin · ' . $plugin['label'], $user);
           </div>
         </div>
 
+      <?php elseif ($pluginName === 'security_gateway'): ?>
+        <div class="row">
+          <div class="col">
+            <label>URL do Security Gateway (JSON-RPC)</label>
+            <input name="config[url]" value="<?= h($plugin['config']['url'] ?? '') ?>" placeholder="https://10.0.0.1">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label>Usuário</label>
+            <input name="config[username]" value="<?= h($plugin['config']['username'] ?? '') ?>">
+          </div>
+          <div class="col">
+            <label>Senha</label>
+            <input name="config[password]" type="password" value="<?= h($plugin['config']['password'] ?? '') ?>">
+          </div>
+        </div>
+
       <?php elseif ($pluginName === 'vcenter'): ?>
         <div class="row">
           <div class="col">
@@ -284,11 +302,14 @@ render_header('Configurar Plugin · ' . $plugin['label'], $user);
           }
         </script>
 
-      <?php elseif (in_array($pluginName, ['wazuh', 'nuclei', 'deepflow', 'guacamole', 'fortianalyzer', 'cloudflare', 'elasticsearch', 'netflow'])): ?>
+      <?php elseif (in_array($pluginName, ['wazuh', 'nuclei', 'deepflow', 'guacamole', 'cloudflare', 'elasticsearch', 'netflow'])): ?>
         <div class="row">
           <div class="col">
             <label>URL do Servidor / API</label>
             <input name="config[url]" value="<?= h($plugin['config']['url'] ?? ($pluginName === 'cloudflare' ? 'https://api.cloudflare.com/client/v4' : '')) ?>" placeholder="https://api.exemplo.com">
+            <?php if ($pluginName === 'elasticsearch'): ?>
+              <div class="muted" style="font-size: 12px; margin-top: 4px">Para versões antigas, use apenas a URL (ex: http://10.2.40.125:9200). Usuário/Senha são opcionais.</div>
+            <?php endif; ?>
           </div>
         </div>
         <div class="row">

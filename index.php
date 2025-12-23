@@ -33,6 +33,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Armazém Cloud - Portal de Atendimento</title>
+  <link rel="icon" href="/assets/favicon_round.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/favicon.png" type="image/png">
+  <link rel="shortcut icon" href="/assets/favicon.png" type="image/png">
   <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body class="auth-body">

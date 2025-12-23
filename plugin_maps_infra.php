@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
 // nsx_api.php is already included in bootstrap.php
-require __DIR__ . '/includes/faz_api.php';
+require __DIR__ . '/includes/security_logs_api.php';
 
 $user = require_login();
 
@@ -20,7 +20,7 @@ if ($action === 'summary') {
 
     $results = [
         'nsx' => nsx_get_aggregated_stats($pdo),
-        'faz' => faz_get_aggregated_stats($pdo),
+        'security_logs' => security_logs_get_aggregated_stats($pdo),
         'timestamp' => time()
     ];
 

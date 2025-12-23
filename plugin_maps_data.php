@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/includes/bootstrap.php';
+require_once __DIR__ . '/includes/bootstrap.php';
 $user = require_login();
 
 header('Content-Type: application/json');
@@ -25,9 +25,9 @@ $threatData = array_merge([
     'snmp_data' => [],
     'wazuh_alerts' => [],
     'nuclei_findings' => [],
-    'faz_incidents' => [],
-    'faz_interfaces' => [],
-    'faz_mitre' => [],
+    'security_incidents' => [],
+    'security_interfaces' => [],
+    'security_mitre' => [],
     'top_stats' => [
         'talkers' => [],
         'services' => [],
@@ -220,7 +220,9 @@ foreach ($threatData['bgp_peers'] ?? [] as $asn => $peer) {
             'city' => $peer['geo']['city'] ?? 'Unknown',
             'power' => $peer['power'] ?? 1,
             'holder' => $peer['holder'] ?? 'Unknown',
-            'ix_count' => $peer['ix_count'] ?? 0
+            'ix_count' => $peer['ix_count'] ?? 0,
+            'status' => $peer['status'] ?? 'up',
+            'is_down' => ($peer['status'] ?? 'up') === 'down'
         ],
         'geometry' => [
             'type' => 'Point',
@@ -232,7 +234,7 @@ foreach ($threatData['bgp_peers'] ?? [] as $asn => $peer) {
     $neighborAsn = $peer['neighbor_of'] ?? null;
     $neighborLoc = null;
 
-    if ($neighborAsn === 'AS262978') {
+    if ($neighborAsn === 'AS262978' || $neighborAsn === '262978') {
         $neighborLoc = $targetLoc;
     } elseif (isset($threatData['bgp_peers'][$neighborAsn]['geo']['loc'])) {
         $neighborLoc = $threatData['bgp_peers'][$neighborAsn]['geo']['loc'];
@@ -245,7 +247,9 @@ foreach ($threatData['bgp_peers'] ?? [] as $asn => $peer) {
                 'type' => 'bgp_link',
                 'from_asn' => $asn,
                 'to_asn' => $neighborAsn,
-                'peer_type' => $peer['type'] ?? 'uncertain'
+                'peer_type' => $peer['type'] ?? 'uncertain',
+                'status' => $peer['status'] ?? 'up',
+                'is_down' => ($peer['status'] ?? 'up') === 'down'
             ],
             'geometry' => [
                 'type' => 'LineString',
@@ -293,25 +297,35 @@ if (!empty($threatData['attacks'])) {
         }
 
         if ($targetLoc && $attackerLoc) {
-            // Add Shodan as an attacker point if it's the source
-            if ($attackerIp === 'shodan.io' && !isset($addedPoints['shodan.io'])) {
-                $features[] = [
-                    'type' => 'Feature',
-                    'properties' => [
-                        'type' => 'attacker',
-                        'ip' => 'shodan.io',
-                        'name' => 'Shodan Scanner',
-                        'is_shodan' => true,
-                        'country' => 'US',
-                        'city' => 'Washington',
-                        'details' => 'Network Security Scanner'
-                    ],
-                    'geometry' => [
-                        'type' => 'Point',
-                        'coordinates' => $toCoords('38.8977,-77.0365')
-                    ]
-                ];
-                $addedPoints['shodan.io'] = true;
+            // Add attacker point if not added
+            if (!isset($addedPoints[$attackerIp])) {
+                $info = $threatData['malicious_ips'][$attackerIp] ?? null;
+                if ($info && isset($info['geo']['loc'])) {
+                    $features[] = [
+                        'type' => 'Feature',
+                        'properties' => [
+                            'type' => 'attacker',
+                            'ip' => $attackerIp,
+                            'abuseScore' => $info['abuse_score'] ?? 0,
+                            'reports' => $info['abuse_reports'] ?? 0,
+                            'country' => $info['geo']['country'] ?? 'Unknown',
+                            'city' => $info['geo']['city'] ?? 'Unknown',
+                            'asn' => $info['geo']['asn'] ?? 'Unknown',
+                            'is_sec_logs' => $info['is_sec_logs'] ?? false,
+                            'is_shodan' => isset($info['shodan']),
+                            'is_abuse' => ($info['abuse_score'] ?? 0) > 0,
+                            'is_corgea' => isset($info['corgea']),
+                            'corgea' => $info['corgea'] ?? null,
+                            'is_tor' => $info['is_tor'] ?? false,
+                            'is_elastic' => $info['is_elastic'] ?? false
+                        ],
+                        'geometry' => [
+                            'type' => 'Point',
+                            'coordinates' => $toCoords($info['geo']['loc'])
+                        ]
+                    ];
+                    $addedPoints[$attackerIp] = true;
+                }
             }
 
             $features[] = [
@@ -323,11 +337,15 @@ if (!empty($threatData['attacks'])) {
                     'target_ip' => $targetIp,
                     'is_real_flow' => $attack['is_real_flow'] ?? false,
                     'is_tor' => $attack['is_tor'] ?? false,
-                    'is_faz' => $attack['is_faz'] ?? false,
+                    'is_sec_logs' => $attack['is_sec_logs'] ?? false,
                     'is_shodan' => $attack['is_shodan'] ?? false,
                     'is_abuse' => $attack['is_abuse'] ?? false,
+                    'is_corgea' => $attack['is_corgea'] ?? false,
+                    'is_elastic' => $attack['is_elastic'] ?? false,
+                    'corgea' => $attack['corgea'] ?? null,
                     'name' => $attack['name'] ?? '',
-                    'abuse_score' => $attack['abuse_score'] ?? 0
+                    'abuse_score' => $attack['abuse_score'] ?? 0,
+                    'cves' => $attack['cves'] ?? []
                 ],
                 'geometry' => [
                     'type' => 'LineString',
@@ -351,12 +369,17 @@ if (!empty($threatData['attacks'])) {
                     'type' => 'Feature',
                     'properties' => [
                         'type' => 'attack',
-                        'severity' => ($info['abuse_score'] ?? 0 > 80) ? 'high' : 'medium',
+                        'severity' => ($info['abuse_score'] ?? 0) > 80 ? 'high' : 'medium',
                         'attacker_ip' => $ip,
                         'target_ip' => $randomTargetIp,
                         'is_real_flow' => $info['is_real_flow'] ?? false,
                         'is_tor' => $info['is_tor'] ?? false,
-                        'abuse_score' => $info['abuse_score'] ?? 0
+                        'is_sec_logs' => $info['is_sec_logs'] ?? false,
+                        'is_shodan' => isset($info['shodan']),
+                        'is_abuse' => ($info['abuse_score'] ?? 0) > 0,
+                        'is_corgea' => isset($info['corgea']),
+                        'abuse_score' => $info['abuse_score'] ?? 0,
+                        'cves' => array_keys($info['corgea'] ?? [])
                     ],
                     'geometry' => [
                         'type' => 'LineString',
@@ -376,8 +399,8 @@ echo json_encode([
     'features' => $features,
     'stats' => $threatData['stats'],
     'top_stats' => $threatData['top_stats'],
-    'faz_incidents' => $threatData['faz_incidents'] ?? [],
-    'faz_mitre' => $threatData['faz_mitre'] ?? [],
-    'faz_interfaces' => $threatData['faz_interfaces'] ?? [],
+    'security_incidents' => $threatData['security_incidents'] ?? [],
+    'security_mitre' => $threatData['security_mitre'] ?? [],
+    'security_interfaces' => $threatData['security_interfaces'] ?? [],
     'wazuh_alerts' => $threatData['wazuh_alerts'] ?? []
 ]);

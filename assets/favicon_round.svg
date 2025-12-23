@@ -1,0 +1,23 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fundo circular escuro -->
+  <circle cx="32" cy="32" r="32" fill="#050b11"/>
+  
+  <!-- Máscara para garantir que nada saia do círculo -->
+  <defs>
+    <clipPath id="circleClip">
+      <circle cx="32" cy="32" r="32" />
+    </clipPath>
+  </defs>
+
+  <!-- O favicon original centralizado -->
+  <!-- Aumentamos um pouco para preencher melhor o círculo -->
+  <image 
+    href="/assets/favicon.png" 
+    x="4" y="4" 
+    width="56" height="56" 
+    clip-path="url(#circleClip)"
+  />
+  
+  <!-- Borda opcional para destaque -->
+  <circle cx="32" cy="32" r="31" fill="none" stroke="#27c4a8" stroke-width="1" opacity="0.5"/>
+</svg>

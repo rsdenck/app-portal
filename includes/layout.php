@@ -13,6 +13,9 @@ function render_header(string $title, ?array $user = null): void
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <title><?= h($title) ?></title>
+      <link rel="icon" href="/assets/favicon_round.svg" type="image/svg+xml">
+      <link rel="icon" href="/assets/favicon.png" type="image/png">
+      <link rel="shortcut icon" href="/assets/favicon.png" type="image/png">
       <link rel="stylesheet" href="/assets/style.css">
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       <script>

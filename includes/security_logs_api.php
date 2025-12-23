@@ -1,10 +1,10 @@
 <?php
 
 /**
- * FortiAnalyzer API Client
+ * Security Gateway API Client
  */
 
-function faz_get_client(array $config) {
+function security_logs_get_client(array $config) {
     return new class($config) {
         private $url;
         private $username;
@@ -56,10 +56,9 @@ function faz_get_client(array $config) {
         public function request($url, $data = [], $cacheTtl = 600) {
             global $pdo;
 
-            // Try cache for GET-like requests (FortiAnalyzer uses POST for everything, but we can cache specific URLs)
             $cacheKey = '';
             if (isset($pdo)) {
-                $cacheKey = 'faz_api_' . md5($this->url . $url . $this->username);
+                $cacheKey = 'security_logs_api_' . md5($this->url . $url . $this->username);
                 $cached = plugin_cache_get($pdo, $cacheKey);
                 if ($cached !== null) {
                     return $cached;
@@ -96,12 +95,10 @@ function faz_get_client(array $config) {
         }
 
         public function getLogs($limit = 10) {
-            // Simplified log fetch
             return $this->request('/log/current/traffic', ['limit' => $limit]);
         }
 
         public function getThreats($limit = 50) {
-            // Fetch IPS/Security events from FortiAnalyzer
             return $this->request('/log/current/attack', ['limit' => $limit]);
         }
 
@@ -127,11 +124,11 @@ function faz_get_client(array $config) {
     };
 }
 
-function faz_get_aggregated_stats(PDO $pdo) {
+function security_logs_get_aggregated_stats(PDO $pdo) {
     $plugin = plugin_get_by_name($pdo, 'fortianalyzer');
     if (!$plugin || !$plugin['is_active']) return null;
 
-    $client = faz_get_client($plugin['config']);
+    $client = security_logs_get_client($plugin['config']);
     $stats = $client->getStats();
     
     return [

@@ -121,11 +121,11 @@ function plugins_ensure_table(PDO $pdo): void
             'required_category_slug' => 'seguranca'
         ],
         [
-            'name' => 'fortianalyzer',
-            'label' => 'FortiAnalyzer API',
+            'name' => 'security_gateway',
+            'label' => 'Security Gateway',
             'category' => 'Segurança',
-            'description' => 'Análise de logs e visibilidade de segurança Fortinet.',
-            'icon' => 'bar-chart',
+            'description' => 'Coleta de logs e eventos de segurança do gateway principal.',
+            'icon' => 'shield',
             'required_category_slug' => 'seguranca'
         ],
         [
@@ -509,11 +509,11 @@ function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
                     'sub' => []
                 ];
                 break;
-            case 'fortianalyzer':
+            case 'security_gateway':
                 $menus[] = [
-                    'label' => 'FortiAnalyzer',
-                    'icon' => 'bar-chart',
-                    'url' => '/plugin_fortianalyzer.php',
+                    'label' => 'Security Gateway',
+                    'icon' => 'shield',
+                    'url' => '/plugin_security_gateway.php',
                     'sub' => []
                 ];
                 break;
@@ -538,14 +538,6 @@ function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
                     'label' => 'Monitoramento (SNMP)',
                     'icon' => 'cpu',
                     'url' => '/plugin_snmp.php',
-                    'sub' => []
-                ];
-                break;
-            case 'elasticsearch':
-                $menus[] = [
-                    'label' => 'Elasticsearch',
-                    'icon' => 'database',
-                    'url' => '/plugin_elasticsearch.php',
                     'sub' => []
                 ];
                 break;

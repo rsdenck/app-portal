@@ -472,6 +472,7 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
         <div class="feed-header">
             <span class="feed-title">THREAT LOG</span>
             <div style="display: flex; align-items: center; gap: 8px;">
+                <button class="fullscreen-btn" onclick="toggleMapMode()" id="mapModeBtn">Plane</button>
                 <button class="fullscreen-btn" onclick="toggleFullScreen()">Full Screen</button>
                 <div style="width: 6px; height: 6px; background: var(--threat-red); border-radius: 50%; animation: flicker 1s infinite;"></div>
             </div>
@@ -581,6 +582,13 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
               }
 
               viewer.scene.globe.enableLighting = false; // Desativar iluminação para manter o estilo "flat dark" constante
+
+              // Rotação lenta do globo
+              viewer.scene.preRender.addEventListener(function(scene, time) {
+                  if (viewer.scene.mode === Cesium.SceneMode.SCENE3D) {
+                      viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, 0.0002);
+                  }
+              });
 
               setupScene();
               initInteractivity();
@@ -767,12 +775,44 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
                     `;
                 }
 
-                if (props.type === 'attacker') {
+                if (props.type === 'attacker' || props.type === 'attack') {
                     html += `
                         <div style="margin-top:15px; padding:10px; background:rgba(255,0,0,0.1); border:1px solid rgba(255,0,0,0.3);">
-                            <div class="hud-detail-row"><span class="hud-detail-label">Abuse Score:</span><span class="hud-detail-value" style="color:#ff4444">${props.abuseScore}%</span></div>
-                            <div class="hud-detail-row"><span class="hud-detail-label">Reports:</span><span class="hud-detail-value">${props.reports}</span></div>
-                            ${props.is_wazuh ? `<div class="hud-detail-row"><span class="hud-detail-label">Source:</span><span class="hud-detail-value" style="color:var(--vuln-yellow)">WAZUH IDS ALERT</span></div>` : ''}
+                            ${props.type === 'attacker' ? `
+                                <div class="hud-detail-row"><span class="hud-detail-label">Abuse Score:</span><span class="hud-detail-value" style="color:#ff4444">${props.abuseScore}%</span></div>
+                                <div class="hud-detail-row"><span class="hud-detail-label">Reports:</span><span class="hud-detail-value">${props.reports}</span></div>
+                            ` : `
+                                <div class="hud-detail-row"><span class="hud-detail-label">Source IP:</span><span class="hud-detail-value">${props.attacker_ip}</span></div>
+                                <div class="hud-detail-row"><span class="hud-detail-label">Target IP:</span><span class="hud-detail-value">${props.target_ip}</span></div>
+                                <div class="hud-detail-row"><span class="hud-detail-label">Threat Name:</span><span class="hud-detail-value" style="color:#ff4444">${props.name}</span></div>
+                            `}
+                            
+                            ${props.is_corgea && props.corgea ? `
+                                <div style="margin-top:10px; border-top:1px solid rgba(0,128,255,0.4); padding-top:8px;">
+                                    <div class="hud-detail-label" style="margin-bottom:8px; color:#0080ff; font-weight:bold; letter-spacing:1px;">
+                                        <img src="https://www.corgea.com/favicon.ico" style="width:12px; vertical-align:middle; margin-right:5px;">
+                                        CORGEA CVE INTELLIGENCE
+                                    </div>
+                                    <div style="font-size:10px; color:#ddd; max-height:200px; overflow-y:auto; padding-right:5px;">
+                                        ${Object.entries(props.corgea).map(([id, info]) => `
+                                            <div style="margin-bottom:12px; border-left:2px solid #0080ff; padding-left:8px; background:rgba(0,128,255,0.05); padding:5px;">
+                                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                                    <div style="color:#fff; font-weight:bold; font-size:11px;">${id}</div>
+                                                    <div style="padding:1px 4px; border-radius:3px; background:${info.severity === 'CRITICAL' ? '#ff0000' : (info.severity === 'HIGH' ? '#ff6600' : '#ffff00')}; color:#000; font-weight:bold; font-size:8px;">
+                                                        ${info.severity || 'UNKNOWN'}
+                                                    </div>
+                                                </div>
+                                                <div style="color:#888; font-size:8px; margin-bottom:4px;">Source: ${info.source || 'Corgea API'}</div>
+                                                <div style="margin-top:4px; line-height:1.4;">${info.description || 'No description available.'}</div>
+                                                <div style="margin-top:6px; color:#00ff00; background:rgba(0,255,0,0.1); padding:4px; border-radius:2px;">
+                                                    <strong style="font-size:8px; display:block; margin-bottom:2px; color:#aaa; text-transform:uppercase;">Remediation:</strong>
+                                                    ${info.remediation || 'Contact vendor for patches.'}
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 } else if (props.type === 'target') {
@@ -805,6 +845,7 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
                 } else if (props.type === 'bgp_peer') {
                     html += `
                         <div style="margin-top:15px; padding:10px; background:rgba(128,0,255,0.1); border:1px solid rgba(128,0,255,0.3);">
+                            <div class="hud-detail-row"><span class="hud-detail-label">Status:</span><span class="hud-detail-value" style="color:${props.is_down ? 'red' : '#0f0'}">${props.status.toUpperCase()}</span></div>
                             <div class="hud-detail-row"><span class="hud-detail-label">BGP Relation:</span><span class="hud-detail-value" style="color:#8000ff">${props.peer_type.toUpperCase()}</span></div>
                             <div class="hud-detail-row"><span class="hud-detail-label">Neighbor Of:</span><span class="hud-detail-value">${props.neighbor_of}</span></div>
                             <div class="hud-detail-row"><span class="hud-detail-label">Peer Holder:</span><span class="hud-detail-value" style="font-size:9px;">${props.holder}</span></div>
@@ -841,7 +882,7 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
 
             viewer.entities.values.forEach(entity => {
                 const props = entity.properties ? entity.properties.getValue() : null;
-                const isCritical = props && (props.is_faz || props.is_shodan || props.is_abuse);
+                const isCritical = props && (props.is_sec_logs || props.is_shodan || props.is_abuse);
                 
                 // Point/Target Animation
                 if (entity.point) {
@@ -859,7 +900,7 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
                     entity.ellipse.semiMajorAxis = pulseSize;
                     
                     // Critical origin pulse
-                    if (props && (props.is_faz || props.is_shodan || props.is_abuse)) {
+                    if (props && (props.is_sec_logs || props.is_shodan || props.is_abuse)) {
                         entity.ellipse.material = Cesium.Color.RED.withAlpha(strobe ? 0.6 : 0.1);
                         entity.ellipse.semiMinorAxis = pulseSize * 1.5;
                         entity.ellipse.semiMajorAxis = pulseSize * 1.5;
@@ -868,21 +909,23 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
 
                 if (entity.polyline) {
                     if (entity.polyline.material instanceof Cesium.PolylineGlowMaterialProperty) {
-                        entity.polyline.material.glowPower = glowPower;
+                        entity.polyline.material.glowPower = glowPower + (isCritical ? 0.2 : 0);
                     }
 
                     // Shimmering effect for critical attack lines
-                    if (props && (props.is_faz || props.is_shodan || props.is_abuse)) {
-                        if (entity.polyline.material instanceof Cesium.PolylineArrowMaterialProperty || 
-                            entity.polyline.material instanceof Cesium.PolylineGlowMaterialProperty) {
-                            
-                            // Flicker the alpha for a "shimmering" effect
-                            const baseColor = Cesium.Color.RED;
-                            const alpha = 0.4 + (Math.sin(now / 100) * 0.4); // Oscillate between 0 and 0.8
-                            
-                            if (entity.polyline.material.color) {
-                                entity.polyline.material.color = baseColor.withAlpha(alpha);
-                            }
+                    if (isCritical) {
+                        // Flicker width and alpha for a "shimmering" laser effect
+                        const baseWidth = 6;
+                        const widthPulse = Math.sin(now / 80) * 3; // Fast width pulse
+                        entity.polyline.width = baseWidth + widthPulse;
+
+                        const alpha = 0.5 + (Math.sin(now / 70) * 0.4); // Intense alpha flicker
+                        const baseColor = Cesium.Color.RED;
+
+                        if (entity.polyline.material instanceof Cesium.PolylineArrowMaterialProperty) {
+                            entity.polyline.material.color = baseColor.withAlpha(alpha);
+                        } else if (entity.polyline.material instanceof Cesium.PolylineGlowMaterialProperty) {
+                            entity.polyline.material.color = baseColor.withAlpha(alpha + 0.1);
                         }
                     }
                 }
@@ -899,6 +942,19 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
             else if (element.msRequestFullscreen) element.msRequestFullscreen();
         } else {
             if (document.exitFullscreen) document.exitFullscreen();
+        }
+    }
+
+    function toggleMapMode() {
+        if (!viewer) return;
+        const btn = document.getElementById('mapModeBtn');
+        
+        if (viewer.scene.mode === Cesium.SceneMode.SCENE3D) {
+            viewer.scene.morphToColumbusView(2.0);
+            btn.innerText = 'Globe';
+        } else {
+            viewer.scene.morphTo3D(2.0);
+            btn.innerText = 'Plane';
         }
     }
 
@@ -1103,13 +1159,13 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
                         outlineColor = Cesium.Color.WHITE;
                         break;
                     case 'bgp_peer':
-                        color = Cesium.Color.fromCssColorString('#8000ff'); // Purple
+                        color = Cesium.Color.fromCssColorString('#8000ff');
                         size = 10;
                         outlineColor = Cesium.Color.WHITE;
                         break;
                 }
 
-                viewer.entities.add({
+                const entity = viewer.entities.add({
                     position: Cesium.Cartesian3.fromDegrees(coords[0], coords[1]),
                     point: {
                         pixelSize: size,
@@ -1118,13 +1174,13 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
                         outlineWidth: 2
                     },
                     label: {
-                        text: props.asn || props.ip,
+                        text: (props.is_down ? "⚠️ DOWN: " : "") + (props.asn || props.ip),
                         font: '10px monospace',
                         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
                         outlineWidth: 2,
                         verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
                         pixelOffset: new Cesium.Cartesian2(0, -10),
-                        fillColor: Cesium.Color.WHITE,
+                        fillColor: props.is_down ? Cesium.Color.RED : Cesium.Color.WHITE,
                         outlineColor: Cesium.Color.BLACK,
                         showBackground: true,
                         backgroundColor: new Cesium.Color(0.1, 0.1, 0.1, 0.7),
@@ -1158,7 +1214,7 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
                 
                 let color;
                 let width = props.is_real_flow ? 3 : 5;
-                let isCritical = props.is_faz || props.is_shodan || props.is_abuse;
+                let isCritical = props.is_sec_logs || props.is_shodan || props.is_abuse;
 
                 if (type === 'bgp_link') {
                     color = Cesium.Color.fromCssColorString('#8000ff').withAlpha(0.6);
@@ -1175,6 +1231,32 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
                             arcType: Cesium.ArcType.GEODESIC
                         }
                     });
+
+                    // Add red "X" exactly in the middle of the route if it's down
+                    if (props.is_down) {
+                        const startCarto = Cesium.Cartographic.fromDegrees(startCoords[0], startCoords[1]);
+                        const endCarto = Cesium.Cartographic.fromDegrees(endCoords[0], endCoords[1]);
+                        const geodesic = new Cesium.EllipsoidGeodesic(startCarto, endCarto);
+                        const midpointCarto = geodesic.interpolateUsingFraction(0.5);
+                        const midpoint = Cesium.Cartesian3.fromRadians(midpointCarto.longitude, midpointCarto.latitude, 2000); // Higher to be visible
+
+                        // Create a "Strike" effect with two crossing lines or a bold X
+                        viewer.entities.add({
+                            position: midpoint,
+                            label: {
+                                text: 'X',
+                                font: 'bold 48px "Segoe UI", Arial, sans-serif',
+                                fillColor: Cesium.Color.RED,
+                                outlineColor: Cesium.Color.BLACK,
+                                outlineWidth: 4,
+                                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                                verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                                horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+                                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                                eyeOffset: new Cesium.Cartesian3(0, 0, -5000)
+                            }
+                        });
+                    }
                 } else {
                     // ATTACK LINE (LASER EFFECT)
                     color = isCritical ? Cesium.Color.RED : (props.is_real_flow ? Cesium.Color.AQUA : Cesium.Color.ORANGE);
@@ -1282,23 +1364,60 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
                 color = '#d400ff'; // Override with Tor Purple
             }
 
-            if (p.is_faz) {
-                severity = 'FAZ-IPS';
-                color = '#ff0000'; // Pure red for FAZ detections
+            if (p.is_sec_logs) {
+                severity = 'SEC-GATEWAY';
+                color = '#ff0000'; // Pure red for Security detections
+            } else if (p.is_elastic) {
+                severity = 'ELASTIC';
+                color = '#0055ff'; // Elastic blue
+            } else if (p.is_shodan) {
+                severity = 'SHODAN';
+                color = '#ff0000';
+            } else if (p.is_abuse) {
+                severity = 'ABUSE';
+                color = '#ff0000';
             }
 
             const details = p.is_real_flow ? ` [Port ${p.port || '?'}]` : '';
-            const abuseTag = p.abuse_score > 0 ? ` <span style="font-size:9px; opacity:0.8; color:#fff; background:rgba(0,0,0,0.3); padding:0 3px; border-radius:2px">ABUSE:${p.abuse_score}%</span>` : '';
-            const attackName = p.name ? `<div style="font-size:9px; margin-top:2px; opacity:0.9">${p.name}</div>` : '';
+            
+            // Add source tags
+            let sourceTags = '';
+            if (p.is_sec_logs) sourceTags += '<span style="font-size:8px; background:rgba(255,0,0,0.2); border:1px solid #f00; padding:0 2px; margin-left:2px">SEC</span>';
+            if (p.is_elastic) sourceTags += '<span style="font-size:8px; background:rgba(0,85,255,0.2); border:1px solid #05f; padding:0 2px; margin-left:2px; color:#0af">ELASTIC</span>';
+            if (p.is_shodan) sourceTags += '<span style="font-size:8px; background:rgba(255,255,0,0.2); border:1px solid #ff0; padding:0 2px; margin-left:2px; color:#ff0">SHODAN</span>';
+            if (p.is_abuse) sourceTags += '<span style="font-size:8px; background:rgba(0,255,0,0.2); border:1px solid #0f0; padding:0 2px; margin-left:2px; color:#0f0">ABUSE</span>';
+            if (p.is_corgea) sourceTags += '<span style="font-size:8px; background:rgba(0,128,255,0.2); border:1px solid #0080ff; padding:0 2px; margin-left:2px; color:#0080ff">CORGEA</span>';
+            
+            const abuseTag = p.abuse_score > 0 ? ` <span style="font-size:9px; opacity:0.8; color:#fff; background:rgba(0,0,0,0.3); padding:0 3px; border-radius:2px">CONF:${p.abuse_score}%</span>` : '';
+            
+            // Highlight CVEs with Corgea context if available
+            let cveTags = '';
+            if (p.cves && p.cves.length > 0) {
+                cveTags = p.cves.map(cve => {
+                    let sev = '';
+                    if (p.corgea && p.corgea[cve]) {
+                        const cInfo = p.corgea[cve];
+                        const sColor = cInfo.severity === 'CRITICAL' ? '#ff0000' : (cInfo.severity === 'HIGH' ? '#ff6600' : '#ffff00');
+                        sev = ` <span style="color:${sColor}; font-weight:bold; font-size:7px;">[${cInfo.severity}]</span>`;
+                    }
+                    return `<span style="font-size:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); padding:0 2px; margin-right:2px; color:#fff">${cve}${sev}</span>`;
+                }).join('');
+            }
+
+            const attackName = p.name ? `<div style="font-size:9px; margin-top:2px; opacity:0.9; font-weight:bold;">${p.name}</div>` : '';
             
             feedHtml += `
-                <div class="feed-item" style="border-color: ${color}; background: rgba(0,255,255,0.05); color: ${color};">
+                <div class="feed-item" style="border-color: ${color}; background: ${p.is_corgea ? 'rgba(0,128,255,0.1)' : 'rgba(0,255,255,0.05)'}; color: ${color}; border-left-width: 4px;">
                     <div style="display:flex; justify-content:space-between; align-items:center">
-                        <strong>${severity}:</strong>
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <strong>${severity}:</strong>
+                            ${sourceTags}
+                        </div>
                         ${abuseTag}
                     </div>
-                    <div style="margin: 2px 0">${p.attacker_ip} -> ${p.target_ip}${details}</div>
+                    <div style="margin: 4px 0; font-family: monospace; font-size: 10px;">${p.attacker_ip} <span style="opacity:0.5">>>></span> ${p.target_ip}${details}</div>
                     ${attackName}
+                    ${cveTags ? `<div style="margin-top:4px; display:flex; flex-wrap:wrap; gap:2px;">${cveTags}</div>` : ''}
                 </div>`;
         });
         safeSetHTML('feedContent', feedHtml);
