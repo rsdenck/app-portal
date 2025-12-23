@@ -841,7 +841,19 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
 
             viewer.entities.values.forEach(entity => {
                 const props = entity.properties ? entity.properties.getValue() : null;
+                const isCritical = props && (props.is_faz || props.is_shodan || props.is_abuse);
                 
+                // Point/Target Animation
+                if (entity.point) {
+                    const baseSize = isCritical ? 15 : 10;
+                    const pulse = Math.sin(now / 100) * 5; // Fast pulse
+                    entity.point.pixelSize = baseSize + pulse;
+                    
+                    if (isCritical) {
+                        entity.point.color = strobe ? Cesium.Color.RED : Cesium.Color.WHITE;
+                    }
+                }
+
                 if (entity.ellipse) {
                     entity.ellipse.semiMinorAxis = pulseSize;
                     entity.ellipse.semiMajorAxis = pulseSize;
@@ -1140,60 +1152,82 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
                 const startCoords = coords[0];
                 const endCoords = coords[1];
                 
-                // Arced polyline for better visual correlation of routes
-                const arcPoints = getArcPoints(startCoords, endCoords);
+                // Attack Line Visualization (Point A to Point B)
+                const start = Cesium.Cartesian3.fromDegrees(startCoords[0], startCoords[1]);
+                const end = Cesium.Cartesian3.fromDegrees(endCoords[0], endCoords[1]);
                 
-                // Directional material
                 let color;
                 let width = props.is_real_flow ? 3 : 5;
-                let dash = false;
+                let isCritical = props.is_faz || props.is_shodan || props.is_abuse;
 
                 if (type === 'bgp_link') {
-                    color = Cesium.Color.fromCssColorString('#8000ff').withAlpha(0.6); // Purple for BGP
+                    color = Cesium.Color.fromCssColorString('#8000ff').withAlpha(0.6);
                     width = 2;
-                    dash = true;
-                } else if (props.is_tor) {
-                    color = Cesium.Color.fromCssColorString('#d400ff'); // Purple for TOR
-                } else if (props.is_faz || props.is_shodan || props.is_abuse) {
-                    color = Cesium.Color.RED;
-                    width = 6; // Extra thick for critical threats
-                } else {
-                    color = props.is_real_flow ? Cesium.Color.AQUA : (props.severity === 'high' ? Cesium.Color.RED : Cesium.Color.ORANGE);
-                }
-                
-                // Base directional arrow line
-                viewer.entities.add({
-                    polyline: {
-                        positions: arcPoints,
-                        width: width,
-                        material: dash ? new Cesium.PolylineDashMaterialProperty({
-                            color: color,
-                            dashLength: 16
-                        }) : new Cesium.PolylineArrowMaterialProperty(color)
-                    },
-                    properties: props // Store properties for animation loop
-                });
-
-                // Add a glowing line overlay for extra cyber feel (Continuous Risk Effect)
-                if (type !== 'bgp_link') {
+                    
                     viewer.entities.add({
                         polyline: {
-                            positions: arcPoints,
-                            width: width * 1.5,
-                            material: new Cesium.PolylineGlowMaterialProperty({
-                                glowPower: 0.3,
-                                color: color.withAlpha(0.5)
-                            })
+                            positions: [start, end],
+                            width: width,
+                            material: new Cesium.PolylineDashMaterialProperty({
+                                color: color,
+                                dashLength: 16
+                            }),
+                            arcType: Cesium.ArcType.GEODESIC
+                        }
+                    });
+                } else {
+                    // ATTACK LINE (LASER EFFECT)
+                    color = isCritical ? Cesium.Color.RED : (props.is_real_flow ? Cesium.Color.AQUA : Cesium.Color.ORANGE);
+                    if (isCritical) width = 6;
+
+                    // 1. The main "Laser" line
+                    viewer.entities.add({
+                        polyline: {
+                            positions: [start, end],
+                            width: width,
+                            material: new Cesium.PolylineArrowMaterialProperty(color),
+                            arcType: Cesium.ArcType.GEODESIC,
+                            followSurface: true
                         },
                         properties: props
                     });
 
-                    // Add a thin bright core
+                    // 2. The Glow Overlay
                     viewer.entities.add({
                         polyline: {
-                            positions: arcPoints,
+                            positions: [start, end],
+                            width: width * 2,
+                            material: new Cesium.PolylineGlowMaterialProperty({
+                                glowPower: 0.5,
+                                color: color.withAlpha(0.4)
+                            }),
+                            arcType: Cesium.ArcType.GEODESIC,
+                            followSurface: true
+                        },
+                        properties: props
+                    });
+
+                    // 3. The Bright Core
+                    viewer.entities.add({
+                        polyline: {
+                            positions: [start, end],
                             width: 2,
-                            material: Cesium.Color.WHITE.withAlpha(0.8)
+                            material: Cesium.Color.WHITE.withAlpha(0.8),
+                            arcType: Cesium.ArcType.GEODESIC,
+                            followSurface: true
+                        },
+                        properties: props
+                    });
+
+                    // 4. The Impact Point Glow (Target)
+                    viewer.entities.add({
+                        position: end,
+                        point: {
+                            pixelSize: isCritical ? 15 : 10,
+                            color: color,
+                            outlineColor: Cesium.Color.WHITE,
+                            outlineWidth: 2,
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY
                         },
                         properties: props
                     });

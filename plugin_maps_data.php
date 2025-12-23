@@ -74,8 +74,16 @@ function get_ip_geo($ip, $pdo, $token, $force = false) {
 function ip_in_range($ip, $range) {
     if (strpos($range, '/') === false) $range .= '/32';
     list($range, $netmask) = explode('/', $range, 2);
+    
+    // Se o IP for um bloco (ex: 132.255.220.0/22), extraímos o primeiro IP
+    if (strpos($ip, '/') !== false) {
+        list($ip, ) = explode('/', $ip, 2);
+    }
+    
     $range_dec = ip2long($range);
     $ip_dec = ip2long($ip);
+    if ($ip_dec === false || $range_dec === false) return false;
+    
     $wildcard_dec = pow(2, (32 - (int)$netmask)) - 1;
     $netmask_dec = ~ $wildcard_dec;
     return (($ip_dec & $netmask_dec) == ($range_dec & $netmask_dec));
@@ -255,96 +263,95 @@ foreach ($threatData['bgp_peers'] ?? [] as $asn => $peer) {
 $addedPoints = [];
 if (!empty($threatData['attacks'])) {
     foreach ($threatData['attacks'] as $attack) {
-        $attackerIp = $attack['attacker'];
-        $targetIp = $attack['target'];
+        $attackerIp = $attack['attacker'] ?? null;
+        $targetIp = $attack['target'] ?? null;
+        if (!$attackerIp || !$targetIp) continue;
         
-            $attackerLoc = null;
-            if ($attackerIp === 'shodan.io') {
-                $attackerLoc = '38.8977,-77.0365'; // Washington DC (Representative)
-            } elseif (isset($threatData['malicious_ips'][$attackerIp]['geo']['loc'])) {
-                $attackerLoc = $threatData['malicious_ips'][$attackerIp]['geo']['loc'];
-            }
-            
-            $targetLoc = null;
-
-            // 1. Try Shodan Assets
-            if (isset($threatData['active_ips'][$targetIp]['geo']['loc'])) {
-                $targetLoc = $threatData['active_ips'][$targetIp]['geo']['loc'];
-            } elseif (isset($threatData['vulnerable_ips'][$targetIp]['geo']['loc'])) {
-                $targetLoc = $threatData['vulnerable_ips'][$targetIp]['geo']['loc'];
-            }
-            
-            // 2. Fallback: Check if target is in our IP blocks
-            if (!$targetLoc && $targetIp) {
-                foreach ($targetBlocks as $block) {
-                    if (ip_in_range($targetIp, $block)) {
-                        // Point to the first infrastructure location (Joinville) as representative
-                        $targetLoc = $threatData['infrastructure'][0]['loc'] ?? '-26.2309,-48.8497';
-                        break;
-                    }
+        $attackerLoc = null;
+        if ($attackerIp === 'shodan.io') {
+            $attackerLoc = '38.8977,-77.0365'; // Washington DC (Representative)
+        } elseif (isset($threatData['malicious_ips'][$attackerIp]['geo']['loc'])) {
+            $attackerLoc = $threatData['malicious_ips'][$attackerIp]['geo']['loc'];
+        }
+        
+        $targetLoc = null;
+        // 1. Try Shodan Assets
+        if (isset($threatData['active_ips'][$targetIp]['geo']['loc'])) {
+            $targetLoc = $threatData['active_ips'][$targetIp]['geo']['loc'];
+        } elseif (isset($threatData['vulnerable_ips'][$targetIp]['geo']['loc'])) {
+            $targetLoc = $threatData['vulnerable_ips'][$targetIp]['geo']['loc'];
+        }
+        
+        // 2. Fallback: Check if target is in our IP blocks
+        if (!$targetLoc && $targetIp) {
+            foreach ($targetBlocks as $block) {
+                if (ip_in_range($targetIp, $block)) {
+                    $targetLoc = $threatData['infrastructure'][0]['loc'] ?? '-26.2309,-48.8497';
+                    break;
                 }
             }
+        }
 
-            if ($targetLoc) {
-                // Add Shodan as an attacker point if it's the source
-                if ($attackerIp === 'shodan.io' && !isset($addedPoints['shodan.io'])) {
-                    $features[] = [
-                        'type' => 'Feature',
-                        'properties' => [
-                            'type' => 'attacker',
-                            'ip' => 'shodan.io',
-                            'name' => 'Shodan Scanner',
-                            'is_shodan' => true,
-                            'country' => 'US',
-                            'city' => 'Washington',
-                            'details' => 'Network Security Scanner'
-                        ],
-                        'geometry' => [
-                            'type' => 'Point',
-                            'coordinates' => $toCoords('38.8977,-77.0365')
-                        ]
-                    ];
-                    $addedPoints['shodan.io'] = true;
-                }
-
+        if ($targetLoc && $attackerLoc) {
+            // Add Shodan as an attacker point if it's the source
+            if ($attackerIp === 'shodan.io' && !isset($addedPoints['shodan.io'])) {
                 $features[] = [
                     'type' => 'Feature',
                     'properties' => [
-                        'type' => 'attack',
-                        'severity' => $attack['severity'],
-                        'attacker_ip' => $attackerIp,
-                        'target_ip' => $targetIp,
-                        'is_real_flow' => $attack['is_real_flow'] ?? false,
-                        'is_tor' => $attack['is_tor'] ?? false,
-                        'is_faz' => $attack['is_faz'] ?? false,
-                        'is_shodan' => $attack['is_shodan'] ?? false,
-                        'is_abuse' => $attack['is_abuse'] ?? false,
-                        'name' => $attack['name'] ?? '',
-                        'abuse_score' => $attack['abuse_score'] ?? 0
+                        'type' => 'attacker',
+                        'ip' => 'shodan.io',
+                        'name' => 'Shodan Scanner',
+                        'is_shodan' => true,
+                        'country' => 'US',
+                        'city' => 'Washington',
+                        'details' => 'Network Security Scanner'
                     ],
                     'geometry' => [
-                        'type' => 'LineString',
-                        'coordinates' => [
-                            $toCoords($attackerLoc),
-                            $toCoords($targetLoc)
-                        ]
+                        'type' => 'Point',
+                        'coordinates' => $toCoords('38.8977,-77.0365')
                     ]
                 ];
+                $addedPoints['shodan.io'] = true;
             }
+
+            $features[] = [
+                'type' => 'Feature',
+                'properties' => [
+                    'type' => 'attack',
+                    'severity' => $attack['severity'] ?? 'medium',
+                    'attacker_ip' => $attackerIp,
+                    'target_ip' => $targetIp,
+                    'is_real_flow' => $attack['is_real_flow'] ?? false,
+                    'is_tor' => $attack['is_tor'] ?? false,
+                    'is_faz' => $attack['is_faz'] ?? false,
+                    'is_shodan' => $attack['is_shodan'] ?? false,
+                    'is_abuse' => $attack['is_abuse'] ?? false,
+                    'name' => $attack['name'] ?? '',
+                    'abuse_score' => $attack['abuse_score'] ?? 0
+                ],
+                'geometry' => [
+                    'type' => 'LineString',
+                    'coordinates' => [
+                        $toCoords($attackerLoc),
+                        $toCoords($targetLoc)
+                    ]
+                ]
+            ];
         }
+    }
 } else {
     // Fallback: Correlação randômica básica se não houver ataques pré-calculados
-    foreach ($threatData['malicious_ips'] as $ip => $info) {
-        if (!isset($info['geo']['loc'])) continue;
+    if (!empty($targetIps)) {
         $allTargets = array_keys($targetIps);
-        if (!empty($allTargets)) {
+        foreach ($threatData['malicious_ips'] as $ip => $info) {
+            if (!isset($info['geo']['loc'])) continue;
             $randomTargetIp = $allTargets[array_rand($allTargets)];
             if (isset($targetIps[$randomTargetIp]['geo']['loc'])) {
                 $features[] = [
                     'type' => 'Feature',
                     'properties' => [
                         'type' => 'attack',
-                        'severity' => ($info['abuse_score'] > 80) ? 'high' : 'medium',
+                        'severity' => ($info['abuse_score'] ?? 0 > 80) ? 'high' : 'medium',
                         'attacker_ip' => $ip,
                         'target_ip' => $randomTargetIp,
                         'is_real_flow' => $info['is_real_flow'] ?? false,
