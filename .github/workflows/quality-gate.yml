@@ -1,0 +1,41 @@
+name: Quality Gate - Portal Armazém Cloud
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo, pdo_mysql
+          coverage: none
+
+      - name: Instalar dependências
+        run: |
+          if [ -f composer.json ]; then
+            composer install --no-interaction --prefer-dist
+          fi
+
+      - name: PHPStan (Static Analysis)
+        run: |
+          vendor/bin/phpstan analyse app includes client --level=6
+
+      - name: PHPCS (PSR-12)
+        run: |
+          vendor/bin/phpcs --standard=PSR12 app includes client --ignore=vendor/
+
+      - name: Security Scan (Semgrep)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/php
