@@ -65,3 +65,4 @@ class ShodanClient {
         return json_decode($response, true);
     }
 }
+

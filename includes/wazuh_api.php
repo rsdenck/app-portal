@@ -55,3 +55,4 @@ class WazuhClient {
 function wazuh_get_client($config) {
     return new WazuhClient($config);
 }
+

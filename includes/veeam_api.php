@@ -310,3 +310,4 @@ function veeam_get_all_jobs(array $plugin, int $limit = 0)
     }
     return $allJobs;
 }
+

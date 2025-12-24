@@ -246,3 +246,4 @@ function zbx_config_from_db(PDO $pdo, array $config): array
 
     return $config;
 }
+

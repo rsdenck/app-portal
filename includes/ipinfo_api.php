@@ -80,3 +80,4 @@ class IpinfoClient {
         return json_decode($response, true);
     }
 }
+

@@ -1,0 +1,226 @@
+<?php
+require_once __DIR__ . '/../../includes/bootstrap.php';
+
+echo "Starting Threat Intelligence Collector...\n";
+
+// Load Plugins
+$bgpPlugin = plugin_get_by_name($pdo, 'bgpview');
+$shodanPlugin = plugin_get_by_name($pdo, 'shodan');
+$abusePlugin = plugin_get_by_name($pdo, 'abuseipdb');
+$ipinfoPlugin = plugin_get_by_name($pdo, 'ipinfo');
+
+$shodanToken = $shodanPlugin['config']['password'] ?? '';
+$abuseToken = $abusePlugin['config']['password'] ?? '';
+$ipinfoToken = $ipinfoPlugin['config']['password'] ?? '';
+$ipBlocks = array_filter(array_map('trim', explode(',', $bgpPlugin['config']['ip_blocks'] ?? '')));
+
+if (empty($ipBlocks)) {
+    die("No IP blocks configured in BGPView plugin.\n");
+}
+
+function get_json_auth($url, $headers = []) {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    if (!empty($headers)) {
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    }
+    $res = curl_exec($ch);
+    $err = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($err) {
+        echo "CURL Error: $err\n";
+        return null;
+    }
+    if ($httpCode >= 400) {
+        echo "HTTP Error: $httpCode for URL: $url\n";
+    }
+    return json_decode($res, true);
+}
+
+function get_geo($ip, $pdo, $token) {
+    if (!$ip || $ip === '127.0.0.1') return null;
+    $cacheKey = "geo_ipinfo_$ip";
+    $stmt = $pdo->prepare("SELECT cache_value FROM plugin_cache WHERE cache_key = ? AND expires_at > NOW()");
+    $stmt->execute([$cacheKey]);
+    $cached = $stmt->fetch();
+    
+    if ($cached) return json_decode($cached['cache_value'], true);
+
+    $url = "https://ipinfo.io/$ip" . ($token ? "?token=$token" : "");
+    $geo = get_json_auth($url);
+    
+    if ($geo && isset($geo['loc'])) {
+        $stmt = $pdo->prepare("INSERT INTO plugin_cache (cache_key, cache_value, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY)) ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expires_at = VALUES(expires_at)");
+        $stmt->execute([$cacheKey, json_encode($geo)]);
+    }
+    return $geo;
+}
+
+$threatData = [
+    'active_ips' => [], // Green
+    'vulnerable_ips' => [], // Yellow (Shodan)
+    'malicious_ips' => [], // Red (AbuseIPDB)
+    'route_traces' => [], // Neon Cyan (BGP Trace)
+    'stats' => [
+        'total_scanned' => 0,
+        'active' => 0,
+        'vulnerable' => 0,
+        'malicious' => 0
+    ]
+];
+
+// 1. Scan IP Blocks using Shodan (Discovery & Vulnerability)
+if ($shodanToken) {
+    echo "Scanning blocks via Shodan...\n";
+    foreach ($ipBlocks as $block) {
+        $url = "https://api.shodan.io/shodan/host/search?key=$shodanToken&query=net:$block";
+        $results = get_json_auth($url);
+        
+        if (isset($results['matches'])) {
+            foreach ($results['matches'] as $match) {
+                $ip = $match['ip_str'];
+                $geo = get_geo($ip, $pdo, $ipinfoToken);
+                
+                $hostInfo = [
+                    'ip' => $ip,
+                    'ports' => $match['port'] ?? [],
+                    'org' => $match['org'] ?? '',
+                    'vulns' => $match['vulns'] ?? [],
+                    'geo' => $geo,
+                    'last_update' => $match['timestamp'] ?? date('Y-m-d H:i:s')
+                ];
+
+                if (!empty($hostInfo['vulns']) || !empty($hostInfo['ports'])) {
+                    $threatData['vulnerable_ips'][$ip] = $hostInfo;
+                    $threatData['stats']['vulnerable']++;
+                } else {
+                    $threatData['active_ips'][$ip] = $hostInfo;
+                    $threatData['stats']['active']++;
+                }
+            }
+        }
+    }
+}
+
+// 2. Fetch ASN Prefixes from BGPView as "Active" (Green) if not already found
+$asn = $bgpPlugin['config']['my_asn'] ?? '';
+$prefixesFound = [];
+if ($asn) {
+    echo "Fetching prefixes for $asn...\n";
+    $asnDigit = preg_replace('/[^0-9]/', '', $asn);
+    $url = "https://api.bgpview.io/asn/$asnDigit/prefixes";
+    $res = get_json_auth($url);
+    
+    if (isset($res['data']['ipv4_prefixes'])) {
+        foreach ($res['data']['ipv4_prefixes'] as $p) {
+            $prefix = $p['prefix'];
+            $prefixesFound[] = $prefix;
+            // Use the first IP of the prefix for geolocation
+            $ip = explode('/', $prefix)[0];
+            
+            if (!isset($threatData['active_ips'][$ip]) && !isset($threatData['vulnerable_ips'][$ip])) {
+                $geo = get_geo($ip, $pdo, $ipinfoToken);
+                $threatData['active_ips'][$ip] = [
+                    'ip' => $ip,
+                    'prefix' => $prefix,
+                    'org' => $p['name'] ?? '',
+                    'geo' => $geo,
+                    'last_update' => date('Y-m-d H:i:s')
+                ];
+                $threatData['stats']['active']++;
+            }
+        }
+    }
+}
+
+// 3. Trace routes (Route-map simulation) for the 3 configured blocks
+if (!empty($ipBlocks)) {
+    echo "Tracing routes for configured blocks...\n";
+    foreach ($ipBlocks as $block) {
+        $ip = explode('/', $block)[0];
+        $url = "https://api.bgpview.io/ip/$ip";
+        $res = get_json_auth($url);
+        
+        if (isset($res['data']['prefixes'])) {
+            foreach ($res['data']['prefixes'] as $p) {
+                // Find peers/upstream/downstream to simulate route tracing
+                $routeInfo = [
+                    'ip' => $ip,
+                    'block' => $block,
+                    'asn' => $p['asn']['asn'] ?? '',
+                    'name' => $p['asn']['name'] ?? '',
+                    'geo' => get_geo($ip, $pdo, $ipinfoToken),
+                    'trace' => []
+                ];
+
+                // Add peers as trace points
+                if (isset($res['data']['rir_allocation']['country_code'])) {
+                    $routeInfo['trace'][] = ['name' => 'RIR', 'country' => $res['data']['rir_allocation']['country_code']];
+                }
+
+                $threatData['route_traces'][$ip] = $routeInfo;
+            }
+        }
+    }
+}
+
+// 4. Check for Malicious Reputation (AbuseIPDB)
+// We check the same active/vulnerable IPs found, and also any recent connections if we had flow data.
+// For now, we'll check the discovered IPs.
+if ($abuseToken && (!empty($threatData['active_ips']) || !empty($threatData['vulnerable_ips']))) {
+    echo "Checking reputation via AbuseIPDB...\n";
+    $allDiscovered = array_merge(array_keys($threatData['active_ips']), array_keys($threatData['vulnerable_ips']));
+    
+    // Limit to 50 IPs per cycle to avoid hitting rate limits too hard
+    foreach (array_slice($allDiscovered, 0, 50) as $ip) {
+        $url = "https://api.abuseipdb.com/api/v2/check?ipAddress=$ip&maxAgeInDays=90";
+        $res = get_json_auth($url, ["Key: $abuseToken", "Accept: application/json"]);
+        
+        if (isset($res['data']['abuseConfidenceScore']) && $res['data']['abuseConfidenceScore'] > 20) {
+            $ipData = $threatData['active_ips'][$ip] ?? $threatData['vulnerable_ips'][$ip];
+            $ipData['abuse_score'] = $res['data']['abuseConfidenceScore'];
+            $ipData['abuse_reports'] = $res['data']['totalReports'];
+            
+            $threatData['malicious_ips'][$ip] = $ipData;
+            $threatData['stats']['malicious']++;
+            
+            // Remove from other categories if malicious
+            unset($threatData['active_ips'][$ip]);
+            unset($threatData['vulnerable_ips'][$ip]);
+        }
+    }
+}
+
+// 4. Fallback: If no IPs found, add at least one IP from each configured block as "Active"
+if ($threatData['stats']['active'] == 0 && $threatData['stats']['vulnerable'] == 0 && $threatData['stats']['malicious'] == 0) {
+    echo "No IPs found via APIs. Using fallback discovery...\n";
+    foreach ($ipBlocks as $block) {
+        // Just take the .1 of each block as a representative point
+        $baseIp = explode('/', $block)[0];
+        $ipParts = explode('.', $baseIp);
+        $ipParts[3] = '1';
+        $ip = implode('.', $ipParts);
+        
+        $geo = get_geo($ip, $pdo, $ipinfoToken);
+        if ($geo && isset($geo['loc'])) {
+            $threatData['active_ips'][$ip] = [
+                'ip' => $ip,
+                'org' => 'Configured Block Fallback',
+                'geo' => $geo,
+                'last_update' => date('Y-m-d H:i:s')
+            ];
+            $threatData['stats']['active']++;
+        }
+    }
+}
+
+// Save to Database
+$stmt = $pdo->prepare("INSERT INTO plugin_bgp_data (type, data, updated_at) VALUES ('threat_intel', ?, NOW()) ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = VALUES(updated_at)");
+$stmt->execute([json_encode($threatData)]);
+
+echo "Threat Intelligence Collection completed.\n";
+echo "Stats: Active: {$threatData['stats']['active']}, Vulnerable: {$threatData['stats']['vulnerable']}, Malicious: {$threatData['stats']['malicious']}\n";

@@ -94,3 +94,4 @@ function netflow_get_client(array $config): NetflowClient {
         $config['password'] ?? ''
     );
 }
+

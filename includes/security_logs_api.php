@@ -136,3 +136,4 @@ function security_logs_get_aggregated_stats(PDO $pdo) {
         'active' => true
     ];
 }
+

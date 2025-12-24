@@ -2,6 +2,23 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/DTO/ProjectDTO.php';
+require_once __DIR__ . '/Repository/ProjectRepository.php';
+require_once __DIR__ . '/Service/ProjectService.php';
+
+use Portal\Repository\ProjectRepository;
+use Portal\Service\ProjectService;
+
+function _get_project_service(PDO $pdo): ProjectService
+{
+    static $service = null;
+    if ($service === null) {
+        $repo = new ProjectRepository($pdo);
+        $service = new ProjectService($repo);
+    }
+    return $service;
+}
+
 function projects_ensure_schema(PDO $pdo): void
 {
     // Projects Table
@@ -52,29 +69,25 @@ function projects_ensure_schema(PDO $pdo): void
 
 function project_create(PDO $pdo, string $name, ?int $ticketId = null): int
 {
-    $stmt = $pdo->prepare("INSERT INTO projects (name, ticket_id) VALUES (?, ?)");
-    $stmt->execute([$name, $ticketId]);
-    $projectId = (int)$pdo->lastInsertId();
+    $projectId = _get_project_service($pdo)->createProject($name, $ticketId);
 
-    // Create default groups
+    // Create default groups (Mantido aqui para compatibilidade direta de fluxo)
     project_group_create($pdo, $projectId, 'Planning', '#579bfc', 1);
     project_group_create($pdo, $projectId, 'Execution', '#a25ddc', 2);
 
     return $projectId;
 }
 
-function project_get_all(PDO $pdo): array
+function project_get_all(PDO $pdo, string $status = 'active'): array
 {
-    $stmt = $pdo->query("SELECT * FROM projects WHERE status = 'active' ORDER BY created_at DESC");
-    return $stmt->fetchAll();
+    $projects = _get_project_service($pdo)->listProjects($status);
+    return array_map(fn($p) => $p->toArray(), $projects);
 }
 
 function project_get_by_id(PDO $pdo, int $id): ?array
 {
-    $stmt = $pdo->prepare("SELECT * FROM projects WHERE id = ?");
-    $stmt->execute([$id]);
-    $project = $stmt->fetch();
-    return $project ?: null;
+    $project = _get_project_service($pdo)->getProject($id);
+    return $project ? $project->toArray() : null;
 }
 
 function project_group_create(PDO $pdo, int $projectId, string $name, string $color = '#579bfc', int $position = 0): int
@@ -86,23 +99,7 @@ function project_group_create(PDO $pdo, int $projectId, string $name, string $co
 
 function project_get_structure(PDO $pdo, int $projectId): array
 {
-    $stmt = $pdo->prepare("SELECT * FROM project_groups WHERE project_id = ? ORDER BY position ASC, id ASC");
-    $stmt->execute([$projectId]);
-    $groups = $stmt->fetchAll();
-
-    foreach ($groups as &$group) {
-        $stmtItems = $pdo->prepare("
-            SELECT i.*, u.name as owner_name, u.email as owner_email 
-            FROM project_items i 
-            LEFT JOIN users u ON u.id = i.owner_user_id 
-            WHERE i.group_id = ? 
-            ORDER BY i.position ASC, i.id ASC
-        ");
-        $stmtItems->execute([$group['id']]);
-        $group['items'] = $stmtItems->fetchAll();
-    }
-
-    return $groups;
+    return _get_project_service($pdo)->getFullStructure($projectId);
 }
 
 function project_item_create(PDO $pdo, int $groupId, string $name): int
@@ -135,8 +132,24 @@ function project_item_delete(PDO $pdo, int $itemId): void
     $stmt->execute([$itemId]);
 }
 
+function project_archive(PDO $pdo, int $id): void
+{
+    _get_project_service($pdo)->archiveProject($id);
+}
+
+function project_unarchive(PDO $pdo, int $id): void
+{
+    _get_project_service($pdo)->unarchiveProject($id);
+}
+
+function project_delete(PDO $pdo, int $id): void
+{
+    _get_project_service($pdo)->deleteProject($id);
+}
+
 function project_group_delete(PDO $pdo, int $groupId): void
 {
     $stmt = $pdo->prepare("DELETE FROM project_groups WHERE id = ?");
     $stmt->execute([$groupId]);
 }
+

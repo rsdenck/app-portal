@@ -88,3 +88,4 @@ class CorgeaClient {
         return json_decode($response, true);
     }
 }
+

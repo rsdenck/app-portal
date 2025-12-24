@@ -496,3 +496,4 @@ function nsx_get_local_data($pdo) {
     }
     return null;
 }
+

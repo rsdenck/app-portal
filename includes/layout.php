@@ -1,6 +1,6 @@
 <?php
 
-function render_header(string $title, ?array $user = null): void
+function render_header(string $title, ?array $user = null, bool $showLayout = true): void
 {
     global $pdo;
     $sessionUser = $user ?? current_user();
@@ -70,8 +70,8 @@ function render_header(string $title, ?array $user = null): void
       });
       </script>
     </head>
-    <body>
-    <?php if ($sessionUser): ?>
+    <body<?= !$showLayout ? ' class="auth-body"' : '' ?>>
+    <?php if ($sessionUser && $showLayout): ?>
       <div class="app-shell">
         <aside class="sidebar">
           <div class="sidebar-header">
@@ -81,11 +81,11 @@ function render_header(string $title, ?array $user = null): void
           </div>
           <?php if ($role === 'cliente'): ?>
             <div class="sidebar-group">
-              <a class="side-link<?= str_ends_with($script, '/cliente_chamado.php') ? ' side-link-active' : '' ?>" href="/cliente_chamado.php">
+              <a class="side-link<?= str_ends_with($script, '/cliente_chamado.php') ? ' side-link-active' : '' ?>" href="/client/cliente_chamado.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Chamados</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/cliente_hosts.php') ? ' side-link-active' : '' ?>" href="/cliente_hosts.php">
+              <a class="side-link<?= str_ends_with($script, '/cliente_hosts.php') ? ' side-link-active' : '' ?>" href="/client/cliente_hosts.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Monitoramento</span>
               </a>
@@ -144,62 +144,62 @@ function render_header(string $title, ?array $user = null): void
                 <?php endif; ?>
               <?php endforeach; ?>
 
-              <a class="side-link<?= str_ends_with($script, '/cliente_ativos.php') ? ' side-link-active' : '' ?>" href="/cliente_ativos.php">
+              <a class="side-link<?= str_ends_with($script, '/cliente_ativos.php') ? ' side-link-active' : '' ?>" href="/client/cliente_ativos.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12" y2="21" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Ativos</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/cliente_boleto.php') ? ' side-link-active' : '' ?>" href="/cliente_boleto.php">
+              <a class="side-link<?= str_ends_with($script, '/cliente_boleto.php') ? ' side-link-active' : '' ?>" href="/client/cliente_boleto.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M4 10h16M4 14h16M4 18h16M4 6h16" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Boletos</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/cliente_billing.php') ? ' side-link-active' : '' ?>" href="/cliente_billing.php">
+              <a class="side-link<?= str_ends_with($script, '/cliente_billing.php') ? ' side-link-active' : '' ?>" href="/client/cliente_billing.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Billing</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/cliente_relatorios.php') ? ' side-link-active' : '' ?>" href="/cliente_relatorios.php">
+              <a class="side-link<?= str_ends_with($script, '/cliente_relatorios.php') ? ' side-link-active' : '' ?>" href="/client/cliente_relatorios.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83" fill="none" stroke="currentColor" stroke-width="2"/><path d="M22 12A10 10 0 0 0 12 2v10z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Relatórios</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/cliente_config.php') ? ' side-link-active' : '' ?>" href="/cliente_config.php">
+              <a class="side-link<?= str_ends_with($script, '/cliente_config.php') ? ' side-link-active' : '' ?>" href="/client/cliente_config.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Configurações</span>
               </a>
             </div>
           <?php elseif ($role === 'atendente'): ?>
             <div class="sidebar-group">
-              <a class="side-link<?= str_ends_with($script, '/atendente_gestao.php') ? ' side-link-active' : '' ?>" href="/atendente_gestao.php">
+              <a class="side-link<?= str_ends_with($script, '/atendente_gestao.php') ? ' side-link-active' : '' ?>" href="/app/atendente_gestao.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="9 22 9 12 15 12 15 22" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Dashboard</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/atendente_fila.php') ? ' side-link-active' : '' ?>" href="/atendente_fila.php">
+              <a class="side-link<?= str_ends_with($script, '/atendente_fila.php') ? ' side-link-active' : '' ?>" href="/app/atendente_fila.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Chamados</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/atendente_atendimentos.php') ? ' side-link-active' : '' ?>" href="/atendente_atendimentos.php">
+              <a class="side-link<?= str_ends_with($script, '/atendente_atendimentos.php') ? ' side-link-active' : '' ?>" href="/app/atendente_atendimentos.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Atendimentos</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/tk_atendente.php') ? ' side-link-active' : '' ?>" href="/tk_atendente.php">
+              <a class="side-link<?= str_ends_with($script, '/tk_atendente.php') ? ' side-link-active' : '' ?>" href="/app/tk_atendente.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="16 11 18 13 22 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Usuários</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/tk_cliente.php') ? ' side-link-active' : '' ?>" href="/tk_cliente.php">
+              <a class="side-link<?= str_ends_with($script, '/tk_cliente.php') ? ' side-link-active' : '' ?>" href="/app/tk_cliente.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Clientes</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/tk_empresas.php') ? ' side-link-active' : '' ?>" href="/tk_empresas.php">
+              <a class="side-link<?= str_ends_with($script, '/tk_empresas.php') ? ' side-link-active' : '' ?>" href="/app/tk_empresas.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M3 21h18M3 7v14M21 7v14M9 21V11m6 10V11M12 3L2 7h20L12 3z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Empresas</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/atendente_ativos.php') ? ' side-link-active' : '' ?>" href="/atendente_ativos.php">
+              <a class="side-link<?= str_ends_with($script, '/atendente_ativos.php') ? ' side-link-active' : '' ?>" href="/app/atendente_ativos.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12" y2="21" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Ativos</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/atendente_monitoramento.php') ? ' side-link-active' : '' ?>" href="/atendente_monitoramento.php">
+              <a class="side-link<?= str_ends_with($script, '/atendente_monitoramento.php') ? ' side-link-active' : '' ?>" href="/app/atendente_monitoramento.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Monitoramento</span>
               </a>
-              <a class="side-link<?= (str_ends_with($script, '/atendente_projetos.php') || str_ends_with($script, '/atendente_projeto_view.php')) ? ' side-link-active' : '' ?>" href="/atendente_projetos.php">
+              <a class="side-link<?= (str_ends_with($script, '/atendente_projetos.php') || str_ends_with($script, '/atendente_projeto_view.php')) ? ' side-link-active' : '' ?>" href="/app/atendente_projetos.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Projetos</span>
               </a>
@@ -236,15 +236,15 @@ function render_header(string $title, ?array $user = null): void
                 </a>
               <?php endforeach; ?>
 
-              <a class="side-link<?= str_ends_with($script, '/atendente_relatorios.php') ? ' side-link-active' : '' ?>" href="/atendente_relatorios.php">
+              <a class="side-link<?= str_ends_with($script, '/atendente_relatorios.php') ? ' side-link-active' : '' ?>" href="/app/atendente_relatorios.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83" fill="none" stroke="currentColor" stroke-width="2"/><path d="M22 12A10 10 0 0 0 12 2v10z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Relatórios</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/tk_docs.php') ? ' side-link-active' : '' ?>" href="/tk_docs.php">
+              <a class="side-link<?= str_ends_with($script, '/tk_docs.php') ? ' side-link-active' : '' ?>" href="/app/tk_docs.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Documentação</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/atendente_config.php') ? ' side-link-active' : '' ?>" href="/atendente_config.php">
+              <a class="side-link<?= str_ends_with($script, '/atendente_config.php') ? ' side-link-active' : '' ?>" href="/app/atendente_config.php">
                 <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
                 <span class="side-link-text">Configurações</span>
               </a>
@@ -266,7 +266,7 @@ function render_header(string $title, ?array $user = null): void
                 <?php
                   $unreadCount = ticket_unread_count_global($pdo, (int)$sessionUser['id']);
                 ?>
-                <a href="<?= $role === 'cliente' ? '/cliente_chamado.php' : '/atendente_fila.php' ?>" class="btn" title="Notificações" style="padding:8px; position:relative; display: flex; align-items:center; justify-content:center">
+                <a href="<?= $role === 'cliente' ? '/client/cliente_chamado.php' : '/atendente_fila.php' ?>" class="btn" title="Notificações" style="padding:8px; position:relative; display: flex; align-items:center; justify-content:center">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -294,21 +294,24 @@ function render_header(string $title, ?array $user = null): void
     <?php endif;
 }
 
-function render_footer(): void
+function render_footer(bool $showLayout = true): void
 {
     $sessionUser = current_user();
     ?>
-    <?php if ($sessionUser): ?>
+    <?php if ($sessionUser && $showLayout): ?>
           </div>
         </div>
       </div>
     <?php else: ?>
       </div>
       <div class="corner-action">
-        <a class="btn" href="/atendente_login.php">Atendente</a>
+        <a class="btn" href="/app/atendente_login.php">Atendente</a>
       </div>
     <?php endif; ?>
     </body>
     </html>
     <?php
 }
+
+
+

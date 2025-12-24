@@ -121,3 +121,4 @@ function format_percent(mixed $value): string
     return number_format((float)$value, 1) . '%';
 }
 
+

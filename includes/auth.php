@@ -22,6 +22,18 @@ function require_login(?string $role = null): array
         http_response_code(403);
         exit('Forbidden');
     }
+    
+    // Validar se o IP ou User Agent mudaram drasticamente (Session Hijacking protection básica)
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    if (!isset($_SESSION['last_ip'])) $_SESSION['last_ip'] = $ip;
+    if (!isset($_SESSION['last_ua'])) $_SESSION['last_ua'] = $ua;
+    
+    if ($_SESSION['last_ip'] !== $ip || $_SESSION['last_ua'] !== $ua) {
+        logout();
+        redirect('/index.php');
+    }
+
     return $user;
 }
 
@@ -63,3 +75,4 @@ function require_permission(string $permission): array
     }
     return $user;
 }
+

@@ -564,3 +564,4 @@ function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
     }
     return $menus;
 }
+

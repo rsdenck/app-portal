@@ -81,6 +81,12 @@ function auth_login(PDO $pdo, string $email, string $password, ?string $required
     if (!password_verify($password, (string)$row['password_hash'])) {
         return null;
     }
+    
+    // Proteção contra Session Fixation
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_regenerate_id(true);
+    }
+
     $user = auth_build_session_user($row);
     $_SESSION['user'] = $user;
     audit_log($pdo, $user, 'login', []);
@@ -1198,3 +1204,4 @@ function audit_log(PDO $pdo, ?array $user, string $action, array $context = []):
     $stmt = $pdo->prepare('INSERT INTO audit_logs (user_id, tenant_id, action, context_json, ip, user_agent) VALUES (?,?,?,?,?,?)');
     $stmt->execute([$userId, $tenantId, $action, $ctx, $ip, $ua]);
 }
+

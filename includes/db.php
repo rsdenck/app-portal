@@ -39,20 +39,11 @@ function db(array $config): PDO
         );
         $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
     } catch (PDOException $e) {
+        error_log("Erro de conexão PDO: " . $e->getMessage());
         http_response_code(500);
         header('Content-Type: text/plain; charset=utf-8');
-        $dsn = (string)($config['db']['dsn'] ?? '');
-        $user = (string)($config['db']['user'] ?? '');
-        exit(
-            "Falha ao conectar no MySQL via PDO.\n\n" .
-            "Verifique:\n" .
-            " - DSN: {$dsn}\n" .
-            " - Usuário: {$user}\n" .
-            " - MySQL está ativo e aceitando conexões\n" .
-            " - Database existe (ex: portal)\n\n" .
-            "Erro PDO:\n" .
-            $e->getMessage() . "\n"
-        );
+        exit("Erro interno ao conectar no banco de dados. O administrador foi notificado.");
     }
     return $pdo;
 }
+

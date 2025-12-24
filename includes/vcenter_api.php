@@ -487,3 +487,4 @@ function vcenter_get_local_data_status(PDO $pdo): array
         return ['status' => 'ERROR', 'message' => $e->getMessage()];
     }
 }
+

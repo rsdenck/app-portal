@@ -39,3 +39,4 @@ function elastic_get_client(array $config)
         }
     };
 }
+
