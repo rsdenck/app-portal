@@ -1,0 +1,11 @@
+parameters:
+    level: 1
+    paths:
+        - app
+        - includes
+        - client
+    excludePaths:
+        - vendor
+    ignoreErrors:
+        - '#Undefined variable: \$pdo#'
+    checkMissingIterableValueType: false

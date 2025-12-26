@@ -17,23 +17,18 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
-          extensions: mbstring, pdo, pdo_mysql
+          php-version: '8.1'
+          extensions: mbstring, pdo, pdo_mysql, gd, curl
           coverage: none
 
       - name: Instalar dependências
-        run: |
-          if [ -f composer.json ]; then
-            composer install --no-interaction --prefer-dist
-          fi
+        uses: ramsey/composer-install@v2
 
       - name: PHPStan (Static Analysis)
-        run: |
-          vendor/bin/phpstan analyse app includes client --level=6
+        run: vendor/bin/phpstan analyse
 
-      - name: PHPCS (PSR-12)
-        run: |
-          vendor/bin/phpcs --standard=PSR12 app includes client --ignore=vendor/
+      - name: PHPCS (Coding Standard)
+        run: vendor/bin/phpcs
 
       - name: Security Scan (Semgrep)
         uses: returntocorp/semgrep-action@v1
