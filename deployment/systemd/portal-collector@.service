@@ -1,0 +1,15 @@
+[Unit]
+Description=Portal Collector - %i
+After=network.target mysql.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory={{INSTALL_DIR}}
+ExecStart={{PHP_BIN}} {{INSTALL_DIR}}/db/scripts/%i.php
+StandardOutput=append:/var/log/portal/%i.log
+StandardError=append:/var/log/portal/%i.log
+
+[Install]
+WantedBy=multi-user.target
