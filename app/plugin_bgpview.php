@@ -34,6 +34,9 @@ render_header('Network · Gestão de ASN & IX', $user);
 <div class="card" style="margin-bottom:18px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="display:flex;align-items:center;gap:12px">
+            <a href="/app/atendente_gestao.php" class="btn" style="padding:8px">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </a>
             <div class="plugin-icon-wrapper" style="background:rgba(39, 196, 168, 0.1);color:var(--primary);width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
             </div>
