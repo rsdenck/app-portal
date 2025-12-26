@@ -2,6 +2,8 @@
 
 require __DIR__ . '/../includes/bootstrap.php';
 
+ticket_ensure_schema($pdo);
+
 $user = require_login('atendente');
 $ticketId = safe_int($_GET['id'] ?? ($_POST['id'] ?? null));
 $error = '';
