@@ -139,13 +139,6 @@ $attendants = attendant_list($pdo);
 render_header('Tickets · Atendentes', $user);
 ?>
 
-<div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-  <a href="/app/atendente_gestao.php" class="btn" style="display: inline-flex; align-items: center; gap: 8px;">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-    Voltar
-  </a>
-</div>
-
 <div style="display: grid; grid-template-columns: 1fr 350px; gap: 20px; align-items: start;">
   <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
