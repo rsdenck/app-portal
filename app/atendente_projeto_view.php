@@ -106,8 +106,8 @@ render_header('Gerenciar Projeto · ' . $project['name'], $user);
                     <tr>
                         <th style="width: 40px;"></th>
                         <th>Atividade</th>
-                        <th style="width: 120px;">Proprietário</th>
-                        <th style="width: 140px;">Status</th>
+                        <th style="width: 180px;">Proprietário</th>
+                        <th style="width: 160px;">Status</th>
                         <th style="width: 160px;">Progresso</th>
                         <th style="width: 120px;">Custos</th>
                         <th style="width: 40px;"></th>
@@ -129,8 +129,31 @@ render_header('Gerenciar Projeto · ' . $project['name'], $user);
                                 </select>
                             </td>
                             <td>
-                                <div class="status-cell status-<?= h(strtolower(str_replace(' ', '-', (string)$item['status']))) ?>" onclick="toggleStatus(this)">
-                                    <?= h((string)$item['status']) ?>
+                                <?php
+                                $sMap = [
+                                    'Working on it' => 'Em andamento',
+                                    'Done' => 'Concluído',
+                                    'Stuck' => 'Travado',
+                                    'Waiting' => 'Aguardando'
+                                ];
+                                $curStatus = (string)$item['status'];
+                                $displayStatus = $sMap[$curStatus] ?? $curStatus;
+                                
+                                // CSS safe class (no accents)
+                                $sClassMap = [
+                                    'Em andamento' => 'em-andamento',
+                                    'Concluído' => 'concluido',
+                                    'Travado' => 'travado',
+                                    'Aguardando' => 'aguardando',
+                                    'Working on it' => 'em-andamento',
+                                    'Done' => 'concluido',
+                                    'Stuck' => 'travado',
+                                    'Waiting' => 'aguardando'
+                                ];
+                                $sClass = $sClassMap[$curStatus] ?? 'aguardando';
+                                ?>
+                                <div class="status-cell status-<?= h($sClass) ?>" onclick="toggleStatus(this)">
+                                    <?= h($displayStatus) ?>
                                 </div>
                             </td>
                             <td>
@@ -240,10 +263,10 @@ render_header('Gerenciar Projeto · ' . $project['name'], $user);
     cursor: pointer;
     text-transform: capitalize;
 }
-.status-done { background-color: #00c875; }
-.status-working-on-it { background-color: #fdab3d; }
-.status-stuck { background-color: #e2445c; }
-.status-waiting { background-color: #797e93; }
+.status-concluido { background-color: #00c875; }
+.status-em-andamento { background-color: #fdab3d; }
+.status-travado { background-color: #e2445c; }
+.status-aguardando { background-color: #797e93; }
 
 .baseline-container {
     height: 10px;
@@ -314,16 +337,24 @@ document.querySelectorAll('.owner-select').forEach(el => {
 });
 
 function toggleStatus(el) {
-    const statuses = ['Working on it', 'Done', 'Stuck', 'Waiting'];
+    const statuses = [
+        { display: 'Em andamento', class: 'em-andamento' },
+        { display: 'Concluído', class: 'concluido' },
+        { display: 'Travado', class: 'travado' },
+        { display: 'Aguardando', class: 'aguardando' }
+    ];
+    
     const current = el.textContent.trim();
-    let nextIndex = (statuses.indexOf(current) + 1) % statuses.length;
+    let currentIndex = statuses.findIndex(s => s.display === current);
+    let nextIndex = (currentIndex + 1) % statuses.length;
     const next = statuses[nextIndex];
     
-    el.textContent = next;
-    el.className = 'status-cell status-' + next.toLowerCase().replace(/ /g, '-');
+    el.textContent = next.display;
+    el.className = 'status-cell status-' + next.class;
     
     const itemId = el.closest('tr').dataset.itemId;
-    updateField(itemId, 'status', next);
+    // We save the display name (Portuguese) to the DB for consistency
+    updateField(itemId, 'status', next.display);
 }
 
 function updateProgress(itemId, value) {
