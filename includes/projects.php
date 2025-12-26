@@ -49,7 +49,7 @@ function projects_ensure_schema(PDO $pdo): void
         group_id INT NOT NULL,
         name VARCHAR(255) NOT NULL,
         owner_user_id BIGINT UNSIGNED NULL,
-        status VARCHAR(50) DEFAULT 'Working on it',
+        status VARCHAR(50) DEFAULT 'Aguardando',
         baseline INT DEFAULT 0,
         expenses DECIMAL(15, 2) DEFAULT 0.00,
         position INT DEFAULT 0,
@@ -72,8 +72,8 @@ function project_create(PDO $pdo, string $name, ?int $ticketId = null): int
     $projectId = _get_project_service($pdo)->createProject($name, $ticketId);
 
     // Create default groups (Mantido aqui para compatibilidade direta de fluxo)
-    project_group_create($pdo, $projectId, 'Planning', '#579bfc', 1);
-    project_group_create($pdo, $projectId, 'Execution', '#a25ddc', 2);
+    project_group_create($pdo, $projectId, 'Planejamento', '#579bfc', 1);
+    project_group_create($pdo, $projectId, 'Execução', '#a25ddc', 2);
 
     return $projectId;
 }
