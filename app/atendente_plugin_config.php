@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 require __DIR__ . '/../includes/bootstrap.php';
 
@@ -453,11 +454,15 @@ render_header('Configurar Plugin · ' . $plugin['label'], $user);
       <?php elseif ($pluginName === 'snmp'): ?>
         <div id="snmp-devices">
           <?php 
-          $devices = $plugin['config']['devices'] ?? [['ip' => '', 'port' => '161', 'community' => 'public']];
+          $devices = $plugin['config']['devices'] ?? [['ip' => '', 'port' => '161', 'version' => '2c', 'community' => 'public', 'v3_user' => '', 'v3_auth_proto' => 'SHA', 'v3_auth_pass' => '', 'v3_priv_proto' => 'AES', 'v3_priv_pass' => '', 'v3_sec_level' => 'authPriv']];
           foreach ($devices as $idx => $d): 
+            $version = $d['version'] ?? '2c';
           ?>
-            <div class="config-section" style="margin-bottom:15px; background: rgba(0,0,0,0.1)">
-              <div style="font-weight:600; margin-bottom:10px">Equipamento SNMP #<?= $idx + 1 ?></div>
+            <div class="config-section snmp-device-item" style="margin-bottom:15px; background: rgba(0,0,0,0.1); padding: 15px; border-radius: 8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+                <div style="font-weight:600">Equipamento SNMP #<?= $idx + 1 ?></div>
+                <button type="button" class="btn danger small" onclick="this.closest('.snmp-device-item').remove()" style="padding:2px 8px">Remover</button>
+              </div>
               <div class="row">
                 <div class="col" style="flex:2">
                   <label>Endereço IP / Hostname</label>
@@ -467,32 +472,131 @@ render_header('Configurar Plugin · ' . $plugin['label'], $user);
                   <label>Porta</label>
                   <input name="config[devices][<?= $idx ?>][port]" value="<?= h($d['port'] ?? '161') ?>">
                 </div>
-              </div>
-              <div class="row">
                 <div class="col">
-                  <label>Community (V2c)</label>
-                  <input name="config[devices][<?= $idx ?>][community]" value="<?= h($d['community'] ?? 'public') ?>">
+                  <label>Versão</label>
+                  <select name="config[devices][<?= $idx ?>][version]" onchange="toggleSnmpVersion(this, <?= $idx ?>)">
+                    <option value="1" <?= $version === '1' ? 'selected' : '' ?>>v1</option>
+                    <option value="2c" <?= $version === '2c' ? 'selected' : '' ?>>v2c</option>
+                    <option value="3" <?= $version === '3' ? 'selected' : '' ?>>v3</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- v1/v2c Config -->
+              <div class="snmp-v12-fields" id="snmp-v12-<?= $idx ?>" style="display: <?= $version !== '3' ? 'block' : 'none' ?>">
+                <div class="row">
+                  <div class="col">
+                    <label>Community</label>
+                    <input name="config[devices][<?= $idx ?>][community]" value="<?= h($d['community'] ?? 'public') ?>">
+                  </div>
+                </div>
+              </div>
+
+              <!-- v3 Config -->
+              <div class="snmp-v3-fields" id="snmp-v3-<?= $idx ?>" style="display: <?= $version === '3' ? 'block' : 'none' ?>">
+                <div class="row">
+                  <div class="col">
+                    <label>Security Level</label>
+                    <select name="config[devices][<?= $idx ?>][v3_sec_level]">
+                      <option value="noAuthNoPriv" <?= ($d['v3_sec_level'] ?? '') === 'noAuthNoPriv' ? 'selected' : '' ?>>noAuthNoPriv</option>
+                      <option value="authNoPriv" <?= ($d['v3_sec_level'] ?? '') === 'authNoPriv' ? 'selected' : '' ?>>authNoPriv</option>
+                      <option value="authPriv" <?= ($d['v3_sec_level'] ?? '') === 'authPriv' ? 'selected' : '' ?>>authPriv</option>
+                    </select>
+                  </div>
+                  <div class="col">
+                    <label>Usuário (Security Name)</label>
+                    <input name="config[devices][<?= $idx ?>][v3_user]" value="<?= h($d['v3_user'] ?? '') ?>">
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col">
+                    <label>Auth Protocol</label>
+                    <select name="config[devices][<?= $idx ?>][v3_auth_proto]">
+                      <option value="MD5" <?= ($d['v3_auth_proto'] ?? '') === 'MD5' ? 'selected' : '' ?>>MD5</option>
+                      <option value="SHA" <?= ($d['v3_auth_proto'] ?? '') === 'SHA' ? 'selected' : '' ?>>SHA</option>
+                      <option value="SHA-256" <?= ($d['v3_auth_proto'] ?? '') === 'SHA-256' ? 'selected' : '' ?>>SHA-256</option>
+                    </select>
+                  </div>
+                  <div class="col">
+                    <label>Auth Password</label>
+                    <input name="config[devices][<?= $idx ?>][v3_auth_pass]" type="password" value="<?= h($d['v3_auth_pass'] ?? '') ?>">
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col">
+                    <label>Priv Protocol</label>
+                    <select name="config[devices][<?= $idx ?>][v3_priv_proto]">
+                      <option value="DES" <?= ($d['v3_priv_proto'] ?? '') === 'DES' ? 'selected' : '' ?>>DES</option>
+                      <option value="AES" <?= ($d['v3_priv_proto'] ?? '') === 'AES' ? 'selected' : '' ?>>AES</option>
+                      <option value="AES-256" <?= ($d['v3_priv_proto'] ?? '') === 'AES-256' ? 'selected' : '' ?>>AES-256</option>
+                    </select>
+                  </div>
+                  <div class="col">
+                    <label>Priv Password</label>
+                    <input name="config[devices][<?= $idx ?>][v3_priv_pass]" type="password" value="<?= h($d['v3_priv_pass'] ?? '') ?>">
+                  </div>
                 </div>
               </div>
             </div>
           <?php endforeach; ?>
         </div>
-        <button type="button" class="btn btn-sm" onclick="addSnmpDevice()" style="margin-top:10px">+ Adicionar Outro Equipamento</button>
+        <button type="button" class="btn btn-sm" onclick="addSnmpDevice()" style="margin-top:10px">+ Adicionar Equipamento</button>
         <script>
+          function toggleSnmpVersion(select, idx) {
+            const v12 = document.getElementById('snmp-v12-' + idx);
+            const v3 = document.getElementById('snmp-v3-' + idx);
+            if (select.value === '3') {
+              v12.style.display = 'none';
+              v3.style.display = 'block';
+            } else {
+              v12.style.display = 'block';
+              v3.style.display = 'none';
+            }
+          }
+
           function addSnmpDevice() {
             const container = document.getElementById('snmp-devices');
-            const idx = container.children.length;
+            const idx = container.querySelectorAll('.snmp-device-item').length;
             const div = document.createElement('div');
-            div.className = 'config-section';
+            div.className = 'config-section snmp-device-item';
             div.style.marginBottom = '15px';
             div.style.background = 'rgba(0,0,0,0.1)';
+            div.style.padding = '15px';
+            div.style.borderRadius = '8px';
             div.innerHTML = `
-              <div style="font-weight:600; margin-bottom:10px">Equipamento SNMP #${idx + 1}</div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+                <div style="font-weight:600">Equipamento SNMP #${idx + 1}</div>
+                <button type="button" class="btn danger small" onclick="this.closest('.snmp-device-item').remove()" style="padding:2px 8px">Remover</button>
+              </div>
               <div class="row">
                 <div class="col" style="flex:2"><label>Endereço IP / Hostname</label><input name="config[devices][${idx}][ip]" placeholder="192.168.1.1"></div>
                 <div class="col"><label>Porta</label><input name="config[devices][${idx}][port]" value="161"></div>
+                <div class="col">
+                  <label>Versão</label>
+                  <select name="config[devices][${idx}][version]" onchange="toggleSnmpVersion(this, ${idx})">
+                    <option value="1">v1</option>
+                    <option value="2c" selected>v2c</option>
+                    <option value="3">v3</option>
+                  </select>
+                </div>
               </div>
-              <div class="row"><div class="col"><label>Community (V2c)</label><input name="config[devices][${idx}][community]" value="public"></div></div>
+              <div class="snmp-v12-fields" id="snmp-v12-${idx}">
+                <div class="row"><div class="col"><label>Community</label><input name="config[devices][${idx}][community]" value="public"></div></div>
+              </div>
+              <div class="snmp-v3-fields" id="snmp-v3-${idx}" style="display:none">
+                <div class="row">
+                  <div class="col"><label>Security Level</label><select name="config[devices][${idx}][v3_sec_level]"><option value="noAuthNoPriv">noAuthNoPriv</option><option value="authNoPriv">authNoPriv</option><option value="authPriv" selected>authPriv</option></select></div>
+                  <div class="col"><label>Usuário</label><input name="config[devices][${idx}][v3_user]"></div>
+                </div>
+                <div class="row">
+                  <div class="col"><label>Auth Protocol</label><select name="config[devices][${idx}][v3_auth_proto]"><option value="MD5">MD5</option><option value="SHA" selected>SHA</option></select></div>
+                  <div class="col"><label>Auth Password</label><input name="config[devices][${idx}][v3_auth_pass]" type="password"></div>
+                </div>
+                <div class="row">
+                  <div class="col"><label>Priv Protocol</label><select name="config[devices][${idx}][v3_priv_proto]"><option value="DES">DES</option><option value="AES" selected>AES</option></select></div>
+                  <div class="col"><label>Priv Password</label><input name="config[devices][${idx}][v3_priv_pass]" type="password"></div>
+                </div>
+              </div>
             `;
             container.appendChild(div);
           }
@@ -519,27 +623,16 @@ render_header('Configurar Plugin · ' . $plugin['label'], $user);
           </div>
         </div>
 
-      <?php elseif (in_array($pluginName, ['abuseipdb', 'shodan', 'ipinfo', 'ipflow'])): ?>
+      <?php elseif (in_array($pluginName, ['abuseipdb', 'shodan', 'ipinfo'])): ?>
         <div class="row">
           <div class="col">
-            <?php if ($pluginName === 'ipflow'): ?>
-              <label>Client ID</label>
-              <input name="config[client_id]" value="<?= h($plugin['config']['client_id'] ?? '') ?>" placeholder="D2skCl7ix...">
-              
-              <label>Client Secret</label>
-              <input name="config[client_secret]" type="password" value="<?= h($plugin['config']['client_secret'] ?? '') ?>" placeholder="zbb7bGqne...">
-              
-              <label>API Base URL</label>
-              <input name="config[url]" value="<?= h($plugin['config']['url'] ?? 'https://api.ipflow.com') ?>" placeholder="https://api.ipflow.com">
-            <?php else: ?>
-              <?php if (in_array($pluginName, ['netflow'])): ?>
-                <label><?= ucfirst($pluginName) ?> API URL</label>
-                <input name="config[url]" value="<?= h($plugin['config']['url'] ?? '') ?>" placeholder="https://api.exemplo.com">
-              <?php endif; ?>
-              
-              <label>API Token / Access Key</label>
-              <input name="config[password]" type="password" value="<?= h($plugin['config']['password'] ?? '') ?>" placeholder="Insira seu token de acesso">
+            <?php if (in_array($pluginName, ['netflow'])): ?>
+              <label><?= ucfirst($pluginName) ?> API URL</label>
+              <input name="config[url]" value="<?= h($plugin['config']['url'] ?? '') ?>" placeholder="https://api.exemplo.com">
             <?php endif; ?>
+            
+            <label>API Token / Access Key</label>
+            <input name="config[password]" type="password" value="<?= h($plugin['config']['password'] ?? '') ?>" placeholder="Insira seu token de acesso">
           </div>
         </div>
       <?php elseif ($pluginName === 'bgpview'): ?>
