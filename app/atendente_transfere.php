@@ -64,7 +64,6 @@ render_header('Atendente · Transferir Chamado', current_user());
     </select>
     <div style="margin-top:14px; display:flex; gap:10px">
       <button class="btn primary" type="submit">Transferir</button>
-      <a class="btn" href="/app/atendente_ticket.php?id=<?= (int)$ticketId ?>">Voltar</a>
     </div>
   </form>
 </div>
