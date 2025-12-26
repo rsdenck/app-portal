@@ -38,13 +38,6 @@ uksort($groupedPlugins, function($a, $b) use ($priority) {
 render_header('Atendente · Plugins', $user);
 ?>
 
-<div style="margin-bottom: 20px;">
-  <a href="/app/atendente_gestao.php" class="btn" style="display: inline-flex; align-items: center; gap: 8px;">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-    Voltar
-  </a>
-</div>
-
 <div class="card" style="margin-bottom:18px">
   <div style="font-weight:700;margin-bottom:6px">Plugins</div>
   <div class="muted" style="margin-bottom:12px">Configure integrações com ferramentas de monitoramento, backup e outros serviços via API.</div>
