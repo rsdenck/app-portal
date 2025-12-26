@@ -1,10 +1,10 @@
 # Portal do Atendente (Admin)
-Diretório contendo todos os arquivos do portal administrativo.
+Diretï¿½rio contendo todos os arquivos do portal administrativo.
 
-## Instalação e Configuração
-1. Certifique-se de que o PHP 8.x está instalado.
-2. Os arquivos dependem do diretório ../includes/ para bootstrap e conexão com o banco.
-3. As rotas são gerenciadas via Nginx (veja diretório e/).
+## Instalaï¿½ï¿½o e Configuraï¿½ï¿½o
+1. Certifique-se de que o PHP 8.x estï¿½ instalado.
+2. Os arquivos dependem do diretï¿½rio ../includes/ para bootstrap e conexï¿½o com o banco.
+3. As rotas sï¿½o gerenciadas via Nginx (veja diretï¿½rio e/).
 
 ## Principais Arquivos
 - tendente_gestao.php: Dashboard principal.
