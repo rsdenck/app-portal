@@ -1,0 +1,11 @@
+[Unit]
+Description=Timer for Portal vCenter Collector
+Requires=portal-collector@vcenter_collector.service
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+Unit=portal-collector@vcenter_collector.service
+
+[Install]
+WantedBy=timers.target

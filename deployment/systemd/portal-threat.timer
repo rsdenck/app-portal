@@ -1,0 +1,11 @@
+[Unit]
+Description=Timer for Portal Threat Intel Collector
+Requires=portal-collector@threat_intel_collector.service
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+Unit=portal-collector@threat_intel_collector.service
+
+[Install]
+WantedBy=timers.target

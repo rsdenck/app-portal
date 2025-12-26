@@ -1,0 +1,11 @@
+[Unit]
+Description=Timer for Portal NSX Collector
+Requires=portal-collector@nsx_collector.service
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=10min
+Unit=portal-collector@nsx_collector.service
+
+[Install]
+WantedBy=timers.target

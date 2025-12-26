@@ -1,0 +1,11 @@
+[Unit]
+Description=Timer for Portal vCenter Alerts
+Requires=portal-collector@vcenter_alerts.service
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=1min
+Unit=portal-collector@vcenter_alerts.service
+
+[Install]
+WantedBy=timers.target

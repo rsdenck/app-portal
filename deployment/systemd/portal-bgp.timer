@@ -1,0 +1,11 @@
+[Unit]
+Description=Timer for Portal BGP Collector
+Requires=portal-collector@bgp_collector.service
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=15min
+Unit=portal-collector@bgp_collector.service
+
+[Install]
+WantedBy=timers.target
