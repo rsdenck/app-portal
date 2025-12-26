@@ -38,7 +38,12 @@ function formatBytes($bytes, $precision = 2) {
 
 <div class="card">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-    <div style="font-weight:700;font-size:18px">Repositórios de Armazenamento (Consolidado)</div>
+    <div style="display:flex;align-items:center;gap:12px">
+        <a href="plugin_veeam.php" class="btn" style="padding:8px">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </a>
+        <div style="font-weight:700;font-size:18px">Repositórios de Armazenamento (Consolidado)</div>
+    </div>
     <?php if ($error_msg): ?>
         <span class="badge danger" title="<?= h($error_msg) ?>">Erro de API</span>
     <?php endif; ?>
