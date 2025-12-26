@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 require __DIR__ . '/../includes/bootstrap.php';
 
@@ -69,7 +70,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 render_header('Atendente · Configurações', current_user());
 ?>
 <div class="card" style="margin-bottom:18px">
-  <div style="font-weight:700;margin-bottom:6px">Configurações</div>
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+    <a href="/app/atendente_gestao.php" class="btn" style="padding:8px">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </a>
+    <div style="font-weight:700;font-size:18px">Configurações</div>
+  </div>
   <div class="muted" style="margin-bottom:12px">Gerencie as principais configurações do painel do atendente.</div>
   <div class="config-grid">
     <a href="/app/atendente_plugins.php" class="config-tile">
@@ -79,7 +85,7 @@ render_header('Atendente · Configurações', current_user());
       </div>
       <div class="config-tile-tag">Integrações</div>
     </a>
-    <a href="#config-account" class="config-tile">
+    <a href="javascript:void(0)" class="config-tile" onclick="document.getElementById('config-account').scrollIntoView({behavior:'smooth'});">
       <div class="config-tile-main">
         <div class="config-tile-title">Conta</div>
         <div class="config-tile-desc">Nome, departamento e senha do atendente.</div>
