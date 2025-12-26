@@ -512,7 +512,6 @@ render_header('Cliente · Host ' . (string)$host['host'], $user);
     </div>
     <div style="display:flex; gap: 8px;">
         <a class="btn primary" href="<?= h($ticketUrl) ?>">Abrir chamado</a>
-        <a class="btn" href="<?= h($backUrl) ?>">Voltar</a>
     </div>
 </div>
 
