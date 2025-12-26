@@ -1,5 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
+/**
+ * Ensures plugin tables exist.
+ * 
+ * @param PDO $pdo
+ * @return void
+ */
 function plugins_ensure_table(PDO $pdo): void
 {
     $sql = "CREATE TABLE IF NOT EXISTS plugins (
@@ -224,14 +232,6 @@ function plugins_ensure_table(PDO $pdo): void
             'description' => 'Integração com Elasticsearch para busca e análise de logs.',
             'icon' => 'monitor',
             'required_category_slug' => null
-        ],
-        [
-            'name' => 'ipflow',
-            'label' => 'IPflow API',
-            'category' => 'Redes',
-            'description' => 'Monitoramento de conexões em tempo real para blocos de IP e ASN.',
-            'icon' => 'zap',
-            'required_category_slug' => 'redes'
         ]
     ];
 
@@ -284,6 +284,57 @@ function plugin_update_config(PDO $pdo, string $name, array $config): void
 {
     $stmt = $pdo->prepare("UPDATE plugins SET config = ? WHERE name = ?");
     $stmt->execute([json_encode($config), $name]);
+}
+
+/**
+ * Check if a plugin is properly configured.
+ * 
+ * @param array $plugin
+ * @return bool
+ */
+function plugin_is_configured(array $plugin): bool
+{
+    $config = $plugin['config'] ?? [];
+    if (is_string($config)) {
+        $config = json_decode($config, true) ?: [];
+    }
+
+    $name = $plugin['name'] ?? '';
+
+    switch ($name) {
+        case 'zabbix':
+        case 'vcenter':
+        case 'nsx':
+        case 'veeam':
+        case 'guacamole':
+            return !empty($config['url']) && !empty($config['username']) && !empty($config['password']);
+        
+        case 'abuseipdb':
+        case 'shodan':
+        case 'ipinfo':
+            return !empty($config['password']); // These use password field for API Key
+            
+        case 'bgpview':
+            return !empty($config['my_asn']);
+
+        case 'snmp':
+            return !empty($config['devices']) && is_array($config['devices']);
+
+        case 'netflow':
+        case 'deepflow':
+        case 'elasticsearch':
+            return !empty($config['url']);
+
+        case 'nuclei':
+        case 'cloudflare':
+            // These might have optional or different config requirements, 
+            // but for now let's assume if they are active they are "configured" 
+            // or require at least one field.
+            return true;
+
+        default:
+            return true;
+    }
 }
 
 /**
@@ -372,11 +423,20 @@ function plugin_cache_delete(PDO $pdo, string $key): void
     $stmt->execute([$key]);
 }
 
+/**
+ * Get menus for active plugins, grouped by category and filtered by RBCA.
+ * 
+ * @param PDO $pdo
+ * @param array|null $user
+ * @param array $activePlugins
+ * @return array
+ */
 function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
 {
     if (!$user) {
         return [];
     }
+
     $userCategorySlug = null;
     if ($user['role'] === 'atendente') {
         $stmt = $pdo->prepare("SELECT tc.slug 
@@ -385,183 +445,56 @@ function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
                                WHERE ap.user_id = ?");
         $stmt->execute([$user['id']]);
         $res = $stmt->fetch();
-        $userCategorySlug = $res ? $res['slug'] : null;
+        $userCategorySlug = $res ? (string)$res['slug'] : null;
     }
 
-    $menus = [];
-    $activePluginNames = array_column($activePlugins, 'name');
-
-    // Unify Maps/Network logic - Attendants/Admins only
-    $hasBgp = in_array('bgpview', $activePluginNames);
-    $hasIpInfo = in_array('ipinfo', $activePluginNames);
-
-    if (($hasBgp && $hasIpInfo) && $user['role'] !== 'cliente') {
-        $menus[] = [
-            'label' => 'Maps',
-            'icon' => 'globe',
-            'url' => '/plugin_maps.php',
-            'sub' => [
-                ['label' => 'Global 3D Map', 'url' => '/plugin_maps.php'],
-                ['label' => 'Network Dashboard', 'url' => '/plugin_bgpview.php']
-            ]
-        ];
-    }
-
+    $groupedMenus = [];
     foreach ($activePlugins as $p) {
-        // Check permission
+        // MUST be active AND configured to show in sidebar
+        if (!plugin_is_configured($p)) {
+            continue;
+        }
+
+        // RBCA: Check if plugin requires a specific category access
         if ($p['required_category_slug'] !== null) {
-            if ($userCategorySlug !== $p['required_category_slug']) {
+            // Admin role bypasses category restriction for visibility in settings, 
+            // but for sidebar we follow the category if it's an attendant.
+            if ($user['role'] === 'atendente' && $userCategorySlug !== $p['required_category_slug']) {
                 continue;
             }
         }
 
-        switch ($p['name']) {
-            case 'vcenter':
-                $menus[] = [
-                    'label' => 'Virtualização',
-                    'icon' => 'vm',
-                    'url' => '/plugin_vcenter.php',
-                    'sub' => []
-                ];
-                break;
-            case 'veeam':
-                $menus[] = [
-                    'label' => 'Backups',
-                    'icon' => 'shield',
-                    'url' => '/plugin_veeam.php',
-                    'sub' => [
-                        ['label' => 'Dashboard', 'url' => '/plugin_veeam.php'],
-                        ['label' => 'Jobs', 'url' => '/plugin_veeam_jobs.php'],
-                        ['label' => 'Repositórios', 'url' => '/plugin_veeam_repos.php']
-                    ]
-                ];
-                break;
-            case 'acronis':
-                $menus[] = [
-                    'label' => 'Backups (Acronis)',
-                    'icon' => 'cloud',
-                    'url' => '/plugin_acronis.php',
-                    'sub' => []
-                ];
-                break;
-            case 'zimbra':
-                $menus[] = [
-                    'label' => 'Zimbra',
-                    'icon' => 'mail',
-                    'url' => '/plugin_zimbra.php',
-                    'sub' => []
-                ];
-                break;
-            case 'whm':
-                $menus[] = [
-                    'label' => 'Hospedagem (WHM)',
-                    'icon' => 'server',
-                    'url' => '/plugin_whm.php',
-                    'sub' => []
-                ];
-                break;
-            case 'wazuh':
-                $menus[] = [
-                    'label' => 'Segurança (Wazuh)',
-                    'icon' => 'shield',
-                    'url' => '/plugin_wazuh.php',
-                    'sub' => []
-                ];
-                break;
-            case 'nuclei':
-                $menus[] = [
-                    'label' => 'Segurança (Nuclei)',
-                    'icon' => 'activity',
-                    'url' => '/plugin_nuclei.php',
-                    'sub' => []
-                ];
-                break;
-            case 'ipinfo':
-                if (!$hasBgp) {
-                    $menus[] = [
-                        'label' => 'Maps',
-                        'icon' => 'globe',
-                        'url' => '/plugin_ipinfo.php',
-                        'sub' => []
-                    ];
-                }
-                break;
-            case 'bgpview':
-                if (!$hasIpInfo) {
-                    $menus[] = [
-                        'label' => 'Network',
-                        'icon' => 'share-2',
-                        'url' => '/plugin_bgpview.php',
-                        'sub' => []
-                    ];
-                }
-                break;
-            case 'deepflow':
-                $menus[] = [
-                    'label' => 'Redes (Deepflow)',
-                    'icon' => 'activity',
-                    'url' => '/plugin_deepflow.php',
-                    'sub' => []
-                ];
-                break;
-            case 'netflow':
-                $menus[] = [
-                    'label' => 'Redes (Netflow)',
-                    'icon' => 'bar-chart',
-                    'url' => '/plugin_netflow.php',
-                    'sub' => []
-                ];
-                break;
-            case 'guacamole':
-                $menus[] = [
-                    'label' => 'Acesso Remoto',
-                    'icon' => 'monitor',
-                    'url' => '/plugin_guacamole.php',
-                    'sub' => []
-                ];
-                break;
-            case 'nsx':
-                $menus[] = [
-                    'label' => 'SDN (NSX)',
-                    'icon' => 'share-2',
-                    'url' => '/plugin_nsx.php',
-                    'sub' => []
-                ];
-                break;
-            case 'security_gateway':
-                $menus[] = [
-                    'label' => 'Security Gateway',
-                    'icon' => 'shield',
-                    'url' => '/plugin_security_gateway.php',
-                    'sub' => []
-                ];
-                break;
-            case 'abuseipdb':
-                $menus[] = [
-                    'label' => 'AbuseIPDB',
-                    'icon' => 'shield-off',
-                    'url' => '/plugin_abuseipdb.php',
-                    'sub' => []
-                ];
-                break;
-            case 'shodan':
-                $menus[] = [
-                    'label' => 'Shodan',
-                    'icon' => 'search',
-                    'url' => '/plugin_shodan.php',
-                    'sub' => []
-                ];
-                break;
-            case 'snmp':
-                $menus[] = [
-                    'label' => 'Monitoramento (SNMP)',
-                    'icon' => 'cpu',
-                    'url' => '/plugin_snmp.php',
-                    'sub' => []
-                ];
-                break;
+        $category = (string)$p['category'];
+        if (!isset($groupedMenus[$category])) {
+            $groupedMenus[$category] = [
+                'label' => $category,
+                'icon' => $p['icon'] ?: 'box',
+                'plugins' => []
+            ];
         }
+
+        // Standardize URLs and labels
+        $url = "/app/plugin_" . $p['name'] . ".php";
+        
+        // Custom logic for plugins with submenus or different entry points
+        $sub = [];
+        if ($p['name'] === 'veeam') {
+            $sub = [
+                ['label' => 'Dashboard', 'url' => '/app/plugin_veeam.php'],
+                ['label' => 'Jobs', 'url' => '/app/plugin_veeam_jobs.php'],
+                ['label' => 'Repositórios', 'url' => '/app/plugin_veeam_repos.php']
+            ];
+        }
+
+        $groupedMenus[$category]['plugins'][] = [
+            'name' => (string)$p['name'],
+            'label' => (string)$p['label'],
+            'url' => $url,
+            'icon' => (string)$p['icon'],
+            'sub' => $sub
+        ];
     }
-    return $menus;
+
+    return $groupedMenus;
 }
 
