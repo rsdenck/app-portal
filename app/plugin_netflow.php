@@ -21,6 +21,12 @@ render_header('Netflow API Dashboard', $user);
 ?>
 
 <div class="container-fluid">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px">
+        <a href="/app/atendente_gestao.php" class="btn" style="padding:8px">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </a>
+        <h2 style="margin:0">Netflow API Dashboard</h2>
+    </div>
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="card bg-dark text-white">
