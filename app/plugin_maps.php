@@ -427,7 +427,12 @@ render_header('Cyber Threat Map · Threat Intelligence', $user);
     </div>
 
     <div class="map-hud">
-        <div class="hud-title">Threat Intel HUD</div>
+        <div class="hud-title">
+            <a href="/app/atendente_gestao.php" class="btn" style="padding:4px 8px; margin-right:10px; border-color:var(--active-green); color:var(--active-green); background:transparent; display:inline-flex; align-items:center; justify-content:center; border-radius:4px; vertical-align:middle">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </a>
+            Threat Intel HUD
+        </div>
         
         <div style="margin-bottom: 15px;">
             <div style="font-size: 9px; color: #666; text-transform: uppercase; margin-bottom: 8px;">Traffic Locality</div>
