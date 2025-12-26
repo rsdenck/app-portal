@@ -27,39 +27,44 @@ render_header('Armazém Cloud - Portal de Atendimento', null, false);
 <div class="auth-page">
   <div class="auth-card">
     <div class="auth-main">
-      <div class="auth-logo">
-        <img src="/assets/logo_armazem.png" alt="Armazém Cloud" class="auth-logo-img">
-      </div>
+      <div class="auth-brand">Armazém Cloud</div>
       <div class="auth-title">Portal de Atendimento ao Cliente</div>
       <div class="auth-subtitle">Acesse seus chamados, monitoramento e billing em um só lugar.</div>
+      
       <form method="post" class="auth-form">
         <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
         <?php if ($error): ?><div class="error"><?= h($error) ?></div><?php endif; ?>
+        
         <label>Email</label>
-        <input name="email" type="email" autocomplete="email" required placeholder="seu@email.com">
+        <input name="email" type="email" autocomplete="email" required placeholder=" ">
+        
         <label>Senha</label>
-        <input name="password" type="password" autocomplete="current-password" required placeholder="••••••••">
+        <input name="password" type="password" autocomplete="current-password" required placeholder=" ">
+        
         <div class="auth-actions">
           <button class="btn primary" type="submit">Entrar</button>
           <a class="auth-link" href="#">Esqueceu a senha?</a>
         </div>
       </form>
-      <div class="auth-meta">
+      
+      <div class="auth-footer-info">
         <div class="muted">Protegido por segurança de nível empresarial.</div>
         <div class="muted">Seus dados são criptografados e protegidos o tempo todo.</div>
       </div>
-      <div class="auth-switch">
-        <div class="muted">Acesso administrativo?</div>
-        <a class="btn" href="/app/atendente_login.php">Acessar painel do atendente</a>
+      
+      <div class="auth-switch-wrapper">
+        <div class="auth-switch-label">Você é administrador?</div>
+        <a class="btn-block" href="/app/atendente_login.php">Acessar painel do atendente</a>
       </div>
     </div>
+    
     <div class="auth-side">
       <div class="auth-side-title">Ainda não tem conta?</div>
       <div class="auth-side-text">
         Entre em contato com sua empresa para obter acesso ao portal da Armazém Cloud.
       </div>
       <div class="auth-terms">
-        Ao continuar, você concorda com nossos Termos de Serviço e Política de Privacidade.
+        Ao continuar, você concorda com nossos <a href="#">Termos de Serviço</a> e <a href="#">Política de Privacidade</a>.
       </div>
     </div>
   </div>
