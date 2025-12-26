@@ -9,7 +9,7 @@ header('Content-Type: text/html; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
 header('X-XSS-Protection: 1; mode=block');
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:;");
 header('Referrer-Policy: strict-origin-when-cross-origin');
 
 ini_set('session.use_strict_mode', '1');
@@ -38,6 +38,7 @@ require_once __DIR__ . '/projects.php';
 
 $pdo = db($config);
 ticket_ensure_schema($pdo);
+user_ensure_schema($pdo);
 ticket_unread_ensure_schema($pdo);
 plugins_ensure_table($pdo);
 projects_ensure_schema($pdo);
