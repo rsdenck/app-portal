@@ -33,7 +33,6 @@ $bgpPlugin = plugin_get_by_name($pdo, 'bgpview');
 $shodanPlugin = plugin_get_by_name($pdo, 'shodan');
 $abusePlugin = plugin_get_by_name($pdo, 'abuseipdb');
 $ipinfoPlugin = plugin_get_by_name($pdo, 'ipinfo');
-$ipflowPlugin = plugin_get_by_name($pdo, 'ipflow');
 $elasticPlugin = plugin_get_by_name($pdo, 'elasticsearch');
 $corgeaToken = 'f669897b-0187-40c0-98be-148e8039c60b'; // Token fornecido pelo usuário
 $secLogsPlugin = plugin_get_by_name($pdo, 'security_gateway');
@@ -50,11 +49,6 @@ $targetBlocks = array_filter(array_map('trim', explode(',', $ipBlocksRaw)));
 $shodanToken = $shodanPlugin['config']['password'] ?? '';
 $abuseToken = $abusePlugin['config']['password'] ?? '';
 $ipinfoToken = $ipinfoPlugin['config']['password'] ?? '';
-
-// IPflow Configs
-$ipflowClientId = $ipflowPlugin['config']['client_id'] ?? 'D2skCl7ixtUnPML9SMFYBQqnLwNzHy14v8psmR0oubSjqptG';
-$ipflowClientSecret = $ipflowPlugin['config']['client_secret'] ?? 'zbb7bGqneInxR6sVrNOLyCTvDIk02xMQDgoSnWRmbHBOCcME6qp7lSYki0WZj32OvbrClQqzGfIEQBNAucdI31PWbXuyLftSHiDLqn4suEcOn81DtMkLdcAtGVvq3DPi';
-$ipflowUrl = $ipflowPlugin['config']['url'] ?? 'https://api.ipflow.com';
 
 // Check if we should use plugins regardless of is_active (if they have config)
 $useShodan = !empty($shodanToken);
@@ -118,61 +112,8 @@ function ip_in_range($ip, $range) {
 }
 
 /**
- * OBTER ACCESS TOKEN IPflow com Cache
+ * get_cached_geo
  */
-function ipflowGetAccessToken($pdo, $clientId, $clientSecret, $baseUrl) {
-    $cacheKey = "ipflow_token_" . md5($clientId);
-    $stmt = $pdo->prepare("SELECT cache_value FROM plugin_cache WHERE cache_key = ? AND expires_at > NOW()");
-    $stmt->execute([$cacheKey]);
-    $cached = $stmt->fetch();
-    if ($cached) return $cached['cache_value'];
-
-    echo "    * Requesting new IPflow access token...\n";
-    $url = "$baseUrl/oauth/token";
-    $postData = [
-        'grant_type'    => 'client_credentials',
-        'client_id'     => $clientId,
-        'client_secret' => $clientSecret
-    ];
-
-    $json = fetch_json($url, ['Content-Type: application/x-www-form-urlencoded'], $postData);
-
-    if (!isset($json['access_token'])) {
-        echo "    ! ERROR: Failed to obtain IPflow token\n";
-        return null;
-    }
-
-    $token = $json['access_token'];
-    $expiresIn = $json['expires_in'] ?? 3600;
-
-    $stmt = $pdo->prepare("INSERT INTO plugin_cache (cache_key, cache_value, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND)) ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expires_at = VALUES(expires_at)");
-    $stmt->execute([$cacheKey, $token, $expiresIn]);
-
-    return $token;
-}
-
-/**
- * CONSULTAR FLUXOS IPflow
- */
-function ipflowGetFlows($token, $asn, $cidrs, $baseUrl) {
-    $url = "$baseUrl/v1/flows/search";
-    
-    // Garantir que ASN seja numérico (remover 'AS' se presente)
-    $asnInt = (int)str_ireplace('AS', '', $asn);
-
-    $payload = json_encode([
-        'asn'       => $asnInt,
-        'cidrs'     => $cidrs,
-        'direction' => 'inbound',
-        'limit'     => 500
-    ]);
-
-    return fetch_json($url, [
-        "Authorization: Bearer {$token}",
-        "Content-Type: application/json"
-    ], $payload);
-}
-
 function get_cached_geo($ip, $pdo, $ipinfoClient = null) {
     $cacheKey = "geo_v3_$ip";
     $stmt = $pdo->prepare("SELECT cache_value FROM plugin_cache WHERE cache_key = ? AND expires_at > NOW()");
@@ -636,25 +577,34 @@ if (php_sapi_name() === 'cli' && basename(__FILE__) === basename($_SERVER['PHP_S
             $exporters[] = [
                 'ip' => $device['host'] ?? $device['ip'],
                 'name' => $device['name'] ?? 'SNMP-Device',
+                'version' => $device['version'] ?? '2c',
                 'community' => $device['community'] ?? $snmpPlugin['config']['community'] ?? 'public',
                 'type' => $device['type'] ?? 'router',
-                'loc' => $device['loc'] ?? '-26.2309,-48.8497'
+                'loc' => $device['loc'] ?? '-26.2309,-48.8497',
+                'v3_auth' => [
+                    'user'          => $device['v3_user'] ?? '',
+                    'sec_level'     => $device['v3_sec_level'] ?? 'noAuthNoPriv',
+                    'auth_protocol' => $device['v3_auth_proto'] ?? 'MD5',
+                    'auth_pass'     => $device['v3_auth_pass'] ?? '',
+                    'priv_protocol' => $device['v3_priv_proto'] ?? 'DES',
+                    'priv_pass'     => $device['v3_priv_pass'] ?? ''
+                ]
             ];
         }
     }
 
     if (empty($exporters)) {
         $exporters = [
-            ['ip' => '132.255.220.1', 'name' => 'Edge-Router-01', 'type' => 'router', 'loc' => '-26.2309,-48.8497', 'community' => 'public'],
-            ['ip' => '186.250.184.1', 'name' => 'Core-Switch-SP', 'type' => 'switch', 'loc' => '-23.5505,-46.6333', 'community' => 'public'],
-            ['ip' => '143.0.120.1', 'name' => 'Gateway-Curitiba', 'type' => 'gateway', 'loc' => '-25.4296,-49.2719', 'community' => 'public']
+            ['ip' => '132.255.220.1', 'name' => 'Edge-Router-01', 'type' => 'router', 'loc' => '-26.2309,-48.8497', 'version' => '2c', 'community' => 'public', 'v3_auth' => []],
+            ['ip' => '186.250.184.1', 'name' => 'Core-Switch-SP', 'type' => 'switch', 'loc' => '-23.5505,-46.6333', 'version' => '2c', 'community' => 'public', 'v3_auth' => []],
+            ['ip' => '143.0.120.1', 'name' => 'Gateway-Curitiba', 'type' => 'gateway', 'loc' => '-25.4296,-49.2719', 'version' => '2c', 'community' => 'public', 'v3_auth' => []]
         ];
     }
 
     $totalIn = 0;
     $totalOut = 0;
     foreach ($exporters as $device) {
-        $traffic = snmp_get_traffic($device['ip'], $device['community']);
+        $traffic = snmp_get_traffic($device['ip'], $device['community'], $device['version'], 1000000, 1, $device['v3_auth']);
         // Somar todos os ingressos como "Internal" (entrada na nossa rede)
         // e egressos como "External" (saída da nossa rede)
         $totalIn += $traffic['in'] ?? 0;
@@ -677,7 +627,7 @@ if (php_sapi_name() === 'cli' && basename(__FILE__) === basename($_SERVER['PHP_S
     foreach ($exporters as $exp) {
         $snmpInfo = null;
         if ($useSnmp) {
-            $snmpInfo = snmp_get_data($exp['ip'], $exp['community']);
+            $snmpInfo = snmp_get_data($exp['ip'], $exp['community'], $exp['version'], 1000000, 1, $exp['v3_auth']);
         }
 
         $threatData['infrastructure'][] = [
@@ -852,91 +802,6 @@ if (php_sapi_name() === 'cli' && basename(__FILE__) === basename($_SERVER['PHP_S
                 ];
                 $threatData['stats']['attacks']++;
             }
-        }
-    }
-
-    // 2.5 IPFLOW: Detectar conexões reais via API OAuth2
-    $ipflowAccessToken = ipflowGetAccessToken($pdo, $ipflowClientId, $ipflowClientSecret, $ipflowUrl);
-    if ($ipflowAccessToken) {
-        echo "  > Fetching real-time flows from IPflow API\n";
-        $flowData = ipflowGetFlows($ipflowAccessToken, $targetASN, $targetBlocks, $ipflowUrl);
-        
-        if ($flowData && isset($flowData['data'])) {
-            $tempTalkers = [];
-            $tempServices = [];
-            $tempAS = [];
-
-            foreach ($flowData['data'] as $flow) {
-                $attackerIp = $flow['src_ip'] ?? null;
-                $targetIp = $flow['dst_ip'] ?? null;
-                $bytes = (int)($flow['bytes'] ?? $flow['octets'] ?? rand(100, 5000));
-                $port = $flow['dst_port'] ?? $flow['destination_port'] ?? 80;
-                $proto = $flow['protocol'] ?? 'TCP';
-
-                if (!$attackerIp) continue;
-
-                // Traffic Locality
-                $isSrcInternal = false;
-                foreach ($targetBlocks as $b) { if (ip_in_range($attackerIp, $b)) { $isSrcInternal = true; break; } }
-                $isDstInternal = false;
-                if ($targetIp) {
-                    foreach ($targetBlocks as $b) { if (ip_in_range($targetIp, $b)) { $isDstInternal = true; break; } }
-                }
-                
-                /* 
-                if ($isSrcInternal && $isDstInternal) $threatData['top_stats']['locality']['internal']++;
-                else $threatData['top_stats']['locality']['external']++;
-                */
-
-                // Top Talkers
-                $tempTalkers[$attackerIp] = ($tempTalkers[$attackerIp] ?? 0) + $bytes;
-                if ($targetIp) $tempTalkers[$targetIp] = ($tempTalkers[$targetIp] ?? 0) + $bytes;
-
-                // Top Services
-                $serviceKey = "$proto/$port";
-                $tempServices[$serviceKey] = ($tempServices[$serviceKey] ?? 0) + $bytes;
-
-                if (!isset($threatData['malicious_ips'][$attackerIp])) {
-                    $geo = get_cached_geo($attackerIp, $pdo, $ipinfoClient);
-                    $threatData['malicious_ips'][$attackerIp] = [
-                        'ip' => $attackerIp,
-                        'abuse_score' => 50,
-                        'geo' => $geo,
-                        'is_real_flow' => true,
-                        'is_tor' => isset($torExitNodes[$attackerIp]),
-                        'tor_info' => $torExitNodes[$attackerIp] ?? null
-                    ];
-
-                    // AS Traffic
-                    if ($geo && isset($geo['asn'])) {
-                        $tempAS[$geo['asn']] = ($tempAS[$geo['asn']] ?? 0) + $bytes;
-                    }
-                }
-
-                $threatData['attacks'][] = [
-                    'attacker' => $attackerIp,
-                    'target' => $targetIp,
-                    'severity' => 'low',
-                    'timestamp' => time(),
-                    'is_real_flow' => true,
-                    'is_tor' => isset($torExitNodes[$attackerIp]),
-                    'bytes' => $bytes,
-                    'port' => $port
-                ];
-                $threatData['stats']['attacks']++;
-                echo "    + Real-time connection: $attackerIp -> $targetIp (IPflow API) [{$bytes} bytes]\n";
-            }
-
-            // Sort and slice top stats
-            arsort($tempTalkers);
-            $threatData['top_stats']['talkers'] = array_slice($tempTalkers, 0, 5, true);
-            arsort($tempServices);
-            $threatData['top_stats']['services'] = array_slice($tempServices, 0, 5, true);
-            arsort($tempAS);
-            $threatData['top_stats']['as_traffic'] = array_slice($tempAS, 0, 5, true);
-
-        } else {
-            echo "    ! No live flows returned from IPflow API for " . implode(',', $targetBlocks) . "\n";
         }
     }
 
