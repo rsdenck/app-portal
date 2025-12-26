@@ -1,0 +1,35 @@
+# Database data (should never be in git)
+mysql_data/
+*.ibd
+*.frm
+*.MYD
+*.MYI
+ibdata*
+ib_logfile*
+undo_*
+binlog.*
+#ib_*
+
+# Uploads and storage
+uploads/
+storage/
+temp/
+
+# Configuration
+config/config.php.local
+.env
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+logs/
+
+# Dependencies
+vendor/
+node_modules/
