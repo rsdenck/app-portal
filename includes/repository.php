@@ -2,7 +2,7 @@
 
 function user_find_by_email(PDO $pdo, string $email): ?array
 {
-    $stmt = $pdo->prepare('SELECT id, role, name, email, password_hash FROM users WHERE email = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, role, name, email, password_hash, theme FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $row = $stmt->fetch();
     return is_array($row) ? $row : null;
@@ -10,7 +10,7 @@ function user_find_by_email(PDO $pdo, string $email): ?array
 
 function user_find_by_id(PDO $pdo, int $id): ?array
 {
-    $stmt = $pdo->prepare('SELECT id, role, name, email FROM users WHERE id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, role, name, email, theme FROM users WHERE id = ? LIMIT 1');
     $stmt->execute([$id]);
     $row = $stmt->fetch();
     return is_array($row) ? $row : null;
@@ -55,6 +55,24 @@ function user_update_password(PDO $pdo, int $id, string $password): void
     $stmt->execute([$hash, $id]);
 }
 
+function user_update_theme(PDO $pdo, int $id, string $theme): void
+{
+    $stmt = $pdo->prepare('UPDATE users SET theme = ? WHERE id = ?');
+    $stmt->execute([$theme, $id]);
+}
+
+function user_ensure_schema(PDO $pdo): void
+{
+    try {
+        $pdo->exec("ALTER TABLE users ADD COLUMN theme VARCHAR(20) NOT NULL DEFAULT 'dark'");
+    } catch (PDOException $e) {
+        $info = $e->errorInfo;
+        if (!is_array($info) || (int)($info[1] ?? 0) !== 1060) {
+            throw $e;
+        }
+    }
+}
+
 function auth_build_session_user(array $row): array
 {
     $user = [
@@ -62,6 +80,7 @@ function auth_build_session_user(array $row): array
         'role' => (string)$row['role'],
         'name' => (string)$row['name'],
         'email' => (string)$row['email'],
+        'theme' => (string)($row['theme'] ?? 'dark'),
     ];
     if (($user['role'] ?? null) === 'cliente') {
         $user['tenant_id'] = (int)$user['id'];
@@ -404,6 +423,40 @@ function ticket_ensure_schema(PDO $pdo): void
     }
 
     ticket_unread_ensure_schema($pdo);
+    ticket_attachments_ensure_schema($pdo);
+}
+
+function ticket_attachments_ensure_schema(PDO $pdo): void
+{
+    $pdo->exec("CREATE TABLE IF NOT EXISTS ticket_comments (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        ticket_id BIGINT UNSIGNED NOT NULL,
+        user_id BIGINT UNSIGNED NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_ticket_comments_ticket (ticket_id),
+        CONSTRAINT fk_ticket_comments_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+        CONSTRAINT fk_ticket_comments_user FOREIGN KEY (user_id) REFERENCES users(id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS ticket_attachments (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        ticket_id BIGINT UNSIGNED NULL,
+        comment_id BIGINT UNSIGNED NULL,
+        user_id BIGINT UNSIGNED NOT NULL,
+        file_name VARCHAR(255) NOT NULL,
+        file_path VARCHAR(255) NOT NULL,
+        file_type VARCHAR(100) NOT NULL,
+        file_size INT UNSIGNED NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY idx_ticket_attachments_ticket (ticket_id),
+        KEY idx_ticket_attachments_comment (comment_id),
+        CONSTRAINT fk_ticket_attachments_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+        CONSTRAINT fk_ticket_attachments_comment FOREIGN KEY (comment_id) REFERENCES ticket_comments(id) ON DELETE CASCADE,
+        CONSTRAINT fk_ticket_attachments_user FOREIGN KEY (user_id) REFERENCES users(id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
 function ticket_calculate_metrics(array $ticket, ?PDO $pdo = null): array
@@ -751,6 +804,35 @@ function ticket_unread_count_global(PDO $pdo, int $userId): int
     return (int)$stmt->fetchColumn();
 }
 
+function ticket_unread_list_global(PDO $pdo, int $userId): array
+{
+    // Fetch unread tickets with categories
+    $stmt = $pdo->prepare("
+        SELECT DISTINCT t.id, t.subject, t.created_at, tc.name AS category_name
+        FROM tickets t
+        JOIN ticket_statuses ts ON ts.id = t.status_id
+        JOIN ticket_categories tc ON tc.id = t.category_id
+        LEFT JOIN ticket_reads tr ON tr.ticket_id = t.id AND tr.user_id = ?
+        WHERE ts.slug NOT IN ('encerrado', 'fechado')
+          AND (
+            -- Unread comments by others
+            EXISTS (
+                SELECT 1 FROM ticket_comments tc2 
+                WHERE tc2.ticket_id = t.id 
+                  AND tc2.user_id != ? 
+                  AND (tr.last_read_at IS NULL OR tc2.created_at > tr.last_read_at)
+            )
+            OR
+            -- Ticket itself unread (and not created by current user)
+            (t.client_user_id != ? AND (tr.last_read_at IS NULL OR t.created_at > tr.last_read_at))
+          )
+        ORDER BY t.created_at DESC
+        LIMIT 10
+    ");
+    $stmt->execute([$userId, $userId, $userId]);
+    return $stmt->fetchAll();
+}
+
 function boleto_list_for_client(PDO $pdo, int $clientUserId): array
 {
     $stmt = $pdo->prepare('SELECT id, reference, file_relative_path, created_at FROM boletos WHERE client_user_id = ? ORDER BY id DESC');
@@ -1014,22 +1096,57 @@ function zbx_settings_save(PDO $pdo, string $url, string $username, string $pass
 
 function docs_ensure_table(PDO $pdo): void
 {
+    // Categorias de Documentação (Hierárquicas)
+    $sqlCat = "CREATE TABLE IF NOT EXISTS doc_categories (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        parent_id BIGINT UNSIGNED NULL,
+        name VARCHAR(100) NOT NULL,
+        PRIMARY KEY (id),
+        CONSTRAINT fk_doc_categories_parent FOREIGN KEY (parent_id) REFERENCES doc_categories(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlCat);
+
+    // Inserir categorias padrão se não existirem
+    $stmtCheck = $pdo->query("SELECT COUNT(*) FROM doc_categories");
+    if ($stmtCheck->fetchColumn() == 0) {
+        $cats = [
+            'Windows' => ['Diskpart', 'AD', 'GPO', 'Update'],
+            'Linux' => ['LVM', 'Docker', 'Nginx', 'Apache', 'SSH'],
+            'Zabbix' => ['Templates', 'Auto Discovery', 'Agents'],
+            'Backup' => ['Veeam', 'Proxmox', 'Cloud'],
+            'Redes' => ['VLAN', 'VPN', 'Firewall', 'BGP'],
+            'Geral' => []
+        ];
+        foreach ($cats as $parent => $subs) {
+            $stmt = $pdo->prepare("INSERT INTO doc_categories (name) VALUES (?)");
+            $stmt->execute([$parent]);
+            $parentId = $pdo->lastInsertId();
+            foreach ($subs as $sub) {
+                $stmt = $pdo->prepare("INSERT INTO doc_categories (parent_id, name) VALUES (?, ?)");
+                $stmt->execute([$parentId, $sub]);
+            }
+        }
+    }
+
     $sql = "CREATE TABLE IF NOT EXISTS docs (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   title VARCHAR(190) NOT NULL,
   category VARCHAR(60) NOT NULL DEFAULT '',
+  category_id BIGINT UNSIGNED NULL,
   content TEXT NOT NULL,
   commands TEXT NULL,
   author_id BIGINT UNSIGNED NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  CONSTRAINT fk_docs_category FOREIGN KEY (category_id) REFERENCES doc_categories(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
     $pdo->exec($sql);
 
     // Add new columns if they don't exist
     try {
-        $pdo->exec("ALTER TABLE docs ADD COLUMN commands TEXT NULL AFTER content");
+        $pdo->exec("ALTER TABLE docs ADD COLUMN category_id BIGINT UNSIGNED NULL AFTER category");
+        $pdo->exec("ALTER TABLE docs ADD CONSTRAINT fk_docs_category FOREIGN KEY (category_id) REFERENCES doc_categories(id) ON DELETE SET NULL");
     } catch (PDOException $e) {}
     try {
         $pdo->exec("ALTER TABLE docs ADD COLUMN author_id BIGINT UNSIGNED NULL AFTER commands");
@@ -1057,27 +1174,48 @@ function docs_ensure_table(PDO $pdo): void
     $pdo->exec($sqlAttachments);
 }
 
+function doc_categories_list(PDO $pdo): array
+{
+    try {
+        $stmt = $pdo->query("
+            SELECT c1.id, c1.name as subcategory, c2.name as category 
+            FROM doc_categories c1
+            INNER JOIN doc_categories c2 ON c1.parent_id = c2.id
+            ORDER BY c2.name, c1.name
+        ");
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        docs_ensure_table($pdo);
+        return [];
+    }
+}
+
 function docs_list(PDO $pdo): array
 {
     try {
         $stmt = $pdo->query('
-            SELECT d.*, u.name AS author_name, u2.name AS updater_name 
+            SELECT d.*, u.name AS author_name, u2.name AS updater_name,
+                   c1.name as subcategory, c2.name as category
             FROM docs d 
             LEFT JOIN users u ON u.id = d.author_id 
             LEFT JOIN users u2 ON u2.id = d.last_updated_by
+            LEFT JOIN doc_categories c1 ON d.category_id = c1.id
+            LEFT JOIN doc_categories c2 ON c1.parent_id = c2.id
             ORDER BY d.created_at DESC
         ');
     } catch (PDOException $e) {
-        // 42S02: Table not found, 42S22: Column not found (MySQL), 42703: Undefined column (PostgreSQL)
         if (!in_array($e->getCode(), ['42S02', '42S22', '42703'])) {
             throw $e;
         }
         docs_ensure_table($pdo);
         $stmt = $pdo->query('
-            SELECT d.*, u.name AS author_name, u2.name AS updater_name 
+            SELECT d.*, u.name AS author_name, u2.name AS updater_name,
+                   c1.name as subcategory, c2.name as category
             FROM docs d 
             LEFT JOIN users u ON u.id = d.author_id 
             LEFT JOIN users u2 ON u2.id = d.last_updated_by
+            LEFT JOIN doc_categories c1 ON d.category_id = c1.id
+            LEFT JOIN doc_categories c2 ON c1.parent_id = c2.id
             ORDER BY d.created_at DESC
         ');
     }
@@ -1088,10 +1226,13 @@ function doc_find(PDO $pdo, int $id): ?array
 {
     try {
         $stmt = $pdo->prepare('
-            SELECT d.*, u.name AS author_name, u2.name AS updater_name 
+            SELECT d.*, u.name AS author_name, u2.name AS updater_name,
+                   c1.name as subcategory, c2.name as category
             FROM docs d 
             LEFT JOIN users u ON u.id = d.author_id 
             LEFT JOIN users u2 ON u2.id = d.last_updated_by
+            LEFT JOIN doc_categories c1 ON d.category_id = c1.id
+            LEFT JOIN doc_categories c2 ON c1.parent_id = c2.id
             WHERE d.id = ? 
             LIMIT 1
         ');
@@ -1102,10 +1243,13 @@ function doc_find(PDO $pdo, int $id): ?array
         }
         docs_ensure_table($pdo);
         $stmt = $pdo->prepare('
-            SELECT d.*, u.name AS author_name, u2.name AS updater_name 
+            SELECT d.*, u.name AS author_name, u2.name AS updater_name,
+                   c1.name as subcategory, c2.name as category
             FROM docs d 
             LEFT JOIN users u ON u.id = d.author_id 
             LEFT JOIN users u2 ON u2.id = d.last_updated_by
+            LEFT JOIN doc_categories c1 ON d.category_id = c1.id
+            LEFT JOIN doc_categories c2 ON c1.parent_id = c2.id
             WHERE d.id = ? 
             LIMIT 1
         ');
@@ -1115,34 +1259,34 @@ function doc_find(PDO $pdo, int $id): ?array
     return is_array($row) ? $row : null;
 }
 
-function doc_create(PDO $pdo, string $title, string $category, string $content, ?string $commands = null, ?int $authorId = null): int
+function doc_create(PDO $pdo, string $title, ?int $categoryId, string $content, ?string $commands = null, ?int $authorId = null): int
 {
     try {
-        $stmt = $pdo->prepare('INSERT INTO docs (title, category, content, commands, author_id) VALUES (?,?,?,?,?)');
-        $stmt->execute([$title, $category, $content, $commands, $authorId]);
+        $stmt = $pdo->prepare('INSERT INTO docs (title, category_id, content, commands, author_id) VALUES (?,?,?,?,?)');
+        $stmt->execute([$title, $categoryId, $content, $commands, $authorId]);
     } catch (PDOException $e) {
         if (!in_array($e->getCode(), ['42S02', '42S22', '42703'])) {
             throw $e;
         }
         docs_ensure_table($pdo);
-        $stmt = $pdo->prepare('INSERT INTO docs (title, category, content, commands, author_id) VALUES (?,?,?,?,?)');
-        $stmt->execute([$title, $category, $content, $commands, $authorId]);
+        $stmt = $pdo->prepare('INSERT INTO docs (title, category_id, content, commands, author_id) VALUES (?,?,?,?,?)');
+        $stmt->execute([$title, $categoryId, $content, $commands, $authorId]);
     }
     return (int)$pdo->lastInsertId();
 }
 
-function doc_update(PDO $pdo, int $id, string $title, string $category, string $content, ?string $commands = null, ?int $userId = null): void
+function doc_update(PDO $pdo, int $id, string $title, ?int $categoryId, string $content, ?string $commands = null, ?int $userId = null): void
 {
     try {
-        $stmt = $pdo->prepare('UPDATE docs SET title = ?, category = ?, content = ?, commands = ?, last_updated_by = ? WHERE id = ?');
-        $stmt->execute([$title, $category, $content, $commands, $userId, $id]);
+        $stmt = $pdo->prepare('UPDATE docs SET title = ?, category_id = ?, content = ?, commands = ?, last_updated_by = ? WHERE id = ?');
+        $stmt->execute([$title, $categoryId, $content, $commands, $userId, $id]);
     } catch (PDOException $e) {
         if (!in_array($e->getCode(), ['42S02', '42S22', '42703'])) {
             throw $e;
         }
         docs_ensure_table($pdo);
-        $stmt = $pdo->prepare('UPDATE docs SET title = ?, category = ?, content = ?, commands = ?, last_updated_by = ? WHERE id = ?');
-        $stmt->execute([$title, $category, $content, $commands, $userId, $id]);
+        $stmt = $pdo->prepare('UPDATE docs SET title = ?, category_id = ?, content = ?, commands = ?, last_updated_by = ? WHERE id = ?');
+        $stmt->execute([$title, $categoryId, $content, $commands, $userId, $id]);
     }
 }
 
@@ -1158,6 +1302,12 @@ function doc_attachments_list(PDO $pdo, int $docId): array
     $stmt = $pdo->prepare('SELECT * FROM doc_attachments WHERE doc_id = ? ORDER BY created_at ASC');
     $stmt->execute([$docId]);
     return $stmt->fetchAll();
+}
+
+function doc_delete(PDO $pdo, int $id): void
+{
+    $pdo->prepare('DELETE FROM doc_attachments WHERE doc_id = ?')->execute([$id]);
+    $pdo->prepare('DELETE FROM docs WHERE id = ?')->execute([$id]);
 }
 
 function audit_ensure_table(PDO $pdo): void
