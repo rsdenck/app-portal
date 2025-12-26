@@ -5,8 +5,6 @@
     <arg value="p"/>
     
     <rule ref="PSR12">
-        <exclude name="PSR1.Files.SideEffects.FoundWithSymbols"/>
-        <exclude name="PSR1.Classes.ClassDeclaration.MissingNamespace"/>
     </rule>
 
     <file>app</file>

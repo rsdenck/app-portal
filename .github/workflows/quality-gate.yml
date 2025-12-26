@@ -34,3 +34,8 @@ jobs:
         uses: semgrep/semgrep-action@v1
         with:
           config: p/php
+          generateSarif: true
+
+      - name: Strict Types Check
+        run: |
+          grep -L "declare(strict_types=1);" app/**/*.php includes/**/*.php client/**/*.php || true
