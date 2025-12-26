@@ -1,14 +1,14 @@
 # Frontend e Servidor Web (Nginx)
-Configurações de servidor para ambiente de produção.
+Configuraï¿½ï¿½es de servidor para ambiente de produï¿½ï¿½o.
 
-## Instalação e Configuração
-1. Copie o conteúdo de 
+## Instalaï¿½ï¿½o e Configuraï¿½ï¿½o
+1. Copie o conteï¿½do de 
 ginx/sites-available/ para /etc/nginx/sites-available/.
-2. Crie o link simbólico para sites-enabled.
-3. Certifique-se de que os caminhos no arquivo .conf apontam para o diretório raiz correto da aplicação.
+2. Crie o link simbï¿½lico para sites-enabled.
+3. Certifique-se de que os caminhos no arquivo .conf apontam para o diretï¿½rio raiz correto da aplicaï¿½ï¿½o.
 
 ## Principais Arquivos
 - 
-ginx/sites-available/portal.domain.com.conf: Arquivo de configuração principal com regras de rewrite.
+ginx/sites-available/portal.domain.com.conf: Arquivo de configuraï¿½ï¿½o principal com regras de rewrite.
 - 
-ginx/snippets/portal_security_headers.conf: Headers de segurança recomendados para produção.
+ginx/snippets/portal_security_headers.conf: Headers de seguranï¿½a recomendados para produï¿½ï¿½o.
