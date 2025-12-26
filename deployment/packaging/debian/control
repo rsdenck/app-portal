@@ -1,0 +1,9 @@
+Package: portal-app
+Version: 1.0.0
+Section: web
+Priority: optional
+Architecture: all
+Maintainer: Portal Dev Team <admin@portal.local>
+Depends: nginx, mariadb-server, php-fpm, php-mysql, php-xml, php-curl, php-mbstring, php-gd
+Description: Portal - Datacenter and Virtualization Management System
+ Portal provides a unified interface for managing vCenter, NSX, and other datacenter infrastructure.
