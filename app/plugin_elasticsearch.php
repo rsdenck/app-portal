@@ -23,7 +23,12 @@ render_header('Elasticsearch Explorer', $user);
 
 <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-        <h2 style="margin:0">Elasticsearch Status</h2>
+        <div style="display:flex; align-items:center; gap:12px">
+            <a href="/app/atendente_gestao.php" class="btn" style="padding:8px">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </a>
+            <h2 style="margin:0">Elasticsearch Status</h2>
+        </div>
         <div class="badge" style="background: <?= ($health['status'] ?? '') === 'green' ? '#27c4a8' : (($health['status'] ?? '') === 'yellow' ? '#f1c40f' : '#e74c3c') ?>">
             <?= h(strtoupper($health['status'] ?? 'UNKNOWN')) ?>
         </div>
