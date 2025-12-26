@@ -24,9 +24,14 @@ render_header('Acesso Remoto · Guacamole', $user);
 
 <div class="card" style="margin-bottom:18px">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
-        <div>
-            <div style="font-weight:700; font-size:1.1rem">Acesso Remoto (Guacamole)</div>
-            <div class="muted">Gerencie conexões RDP, SSH e VNC de forma centralizada.</div>
+        <div style="display:flex; align-items:center; gap:12px">
+            <a href="/app/atendente_gestao.php" class="btn" style="padding:8px">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </a>
+            <div>
+                <div style="font-weight:700; font-size:1.1rem">Acesso Remoto (Guacamole)</div>
+                <div class="muted">Gerencie conexões RDP, SSH e VNC de forma centralizada.</div>
+            </div>
         </div>
         <?php if ($guacUrl): ?>
             <a href="<?= h($guacUrl) ?>" target="_blank" class="btn primary">Abrir Guacamole Externo</a>
