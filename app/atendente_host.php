@@ -456,7 +456,6 @@ render_header($roleLabel . ' · Host ' . (string)$host['host'], $user);
         <?php if ($ticketUrl !== '' && ($user['role'] ?? '') === 'cliente'): ?>
             <a class="btn primary" href="<?= h($ticketUrl) ?>">Abrir chamado</a>
         <?php endif; ?>
-        <a class="btn" href="<?= h($backUrl) ?>">Voltar</a>
     </div>
 </div>
 
