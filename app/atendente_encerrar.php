@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 $user = require_login('atendente');
 $ticketId = safe_int($_GET['ticket_id'] ?? ($_POST['ticket_id'] ?? null));

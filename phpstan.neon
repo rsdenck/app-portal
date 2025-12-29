@@ -6,6 +6,4 @@ parameters:
         - client
     excludePaths:
         - vendor
-    ignoreErrors:
-        - '#Undefined variable: \$pdo#'
     checkMissingIterableValueType: false

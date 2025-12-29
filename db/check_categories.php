@@ -1,5 +1,6 @@
 <?php
-require_once 'includes/bootstrap.php';
+require_once __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 try {
     $stmt = $pdo->query("SELECT id, name FROM ticket_categories");
     while($row = $stmt->fetch()) {

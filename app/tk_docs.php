@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 $user = require_login('atendente');
 $success = '';
@@ -95,9 +96,6 @@ render_header('Atendente · Documentação', current_user());
       <div class="muted">FAQ, manuais técnicos, comandos e procedimentos.</div>
     </div>
     <div style="display:flex;gap:10px">
-        <?php if ($action !== ''): ?>
-            <a class="btn" href="/app/tk_docs.php">Voltar para Lista</a>
-        <?php endif; ?>
         <?php if ($action !== 'create'): ?>
             <a class="btn primary" href="/app/tk_docs.php?action=create">Criar Nova Doc</a>
         <?php endif; ?>

@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 $user = require_login();
 
@@ -113,9 +114,6 @@ usort($vms, function($a, $b) {
 
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
     <div style="display:flex; align-items:center; gap:12px">
-        <a href="/app/atendente_gestao.php" class="btn" style="padding:8px">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        </a>
         <h2 style="margin:0; display:flex; align-items:center; gap:10px">
             <svg class="sidebar-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--primary)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 8l5 3 5-3-5-3-5 3z"/><path d="M7 12l5 3 5-3"/></svg>
             vCenter

@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 $error = '';
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {

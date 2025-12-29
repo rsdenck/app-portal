@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 require_once __DIR__ . '/../includes/security_logs_api.php';
 require_once __DIR__ . '/../includes/snmp_api.php';
 require_once __DIR__ . '/../includes/wazuh_api.php';
@@ -191,17 +192,9 @@ function get_corgea_cve_info($cveId, $pdo, $corgeaClient) {
     echo "    * Fetching CVE info from Corgea: $cveId\n";
     $info = $corgeaClient->searchCve($cveId);
     
-    // Se não encontrar nada, tenta retornar um mock básico se for um CVE conhecido (Simulação)
+    // Se não encontrar nada, retorna null
     if (!$info || (isset($info['total_issues']) && $info['total_issues'] === 0)) {
-        // Mock de dados baseado no hub.corgea.com/threats se falhar
-        $info = [
-            'status' => 'ok',
-            'cve_id' => $cveId,
-            'source' => 'Corgea Hub',
-            'severity' => 'HIGH',
-            'description' => "Vulnerability information for $cveId from Corgea Security Hub.",
-            'remediation' => "Update the affected software to the latest version. Check vendor advisories."
-        ];
+        return null;
     }
 
     $stmt = $pdo->prepare("INSERT INTO plugin_cache (cache_key, cache_value, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 DAY)) ON DUPLICATE KEY UPDATE cache_value = VALUES(cache_value), expires_at = VALUES(expires_at)");
@@ -1069,51 +1062,6 @@ if (php_sapi_name() === 'cli' && basename(__FILE__) === basename($_SERVER['PHP_S
     }
 
     // 4. Salvar no Banco de Dados
-    // --- FINAL FALLBACK / SIMULATION (Ensure map is never empty) ---
-    if (empty($threatData['attacks'])) {
-        echo "  > [SIMULATION] No attacks detected. Generating enriched samples for visualization...\n";
-        $sampleIps = ['185.220.101.149', '45.155.205.233', '193.163.125.10'];
-        foreach ($sampleIps as $attackerIp) {
-            $geo = get_cached_geo($attackerIp, $pdo, $ipinfoClient);
-            $shodanInfo = ($useShodan && $shodanClient) ? $shodanClient->getHost($attackerIp) : null;
-            $abuseInfo = ($useAbuse && $abuseClient) ? $abuseClient->checkIp($attackerIp) : null;
-            $abuseScore = $abuseInfo['data']['abuseConfidenceScore'] ?? 85;
-
-            // Simular CVE e Corgea
-            $sampleCves = ['CVE-2025-5287', 'CVE-2025-5334', 'CVE-2025-5156'];
-            $cveId = $sampleCves[array_rand($sampleCves)];
-            $cveInfo = get_corgea_cve_info($cveId, $pdo, $corgeaClient);
-
-            $threatData['malicious_ips'][$attackerIp] = [
-                'ip' => $attackerIp,
-                'abuse_score' => $abuseScore,
-                'geo' => $geo,
-                'shodan' => [
-                    'vulns' => [$cveId],
-                    'ports' => $shodanInfo['ports'] ?? [80, 443]
-                ],
-                'corgea' => [$cveId => $cveInfo],
-                'source' => 'Simulation',
-                'is_real_flow' => false
-            ];
-
-            $threatData['attacks'][] = [
-                'attacker' => $attackerIp,
-                'target' => $targetBlocks[0] ?? '132.255.220.10',
-                'severity' => 'high',
-                'name' => "Enriched Attack Simulation ($cveId)",
-                'timestamp' => time(),
-                'is_sec_logs' => true,
-                'is_shodan' => true,
-                'is_abuse' => true,
-                'is_corgea' => true,
-                'abuse_score' => $abuseScore,
-                'cves' => [$cveId]
-            ];
-            $threatData['stats']['attacks']++;
-        }
-    }
-
     $jsonStore = json_encode($threatData);
     $stmt = $pdo->prepare("INSERT INTO plugin_bgp_data (type, data, updated_at) VALUES ('threat_intel', ?, NOW()) ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = NOW()");
     $stmt->execute([$jsonStore]);

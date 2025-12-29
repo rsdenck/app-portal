@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/includes/bootstrap.php';
+/** @var PDO $pdo */
 
 // The user requested that localhost:8080 always opens the login screen.
 // We only redirect if a session is already active AND the user isn't trying to see the login page.

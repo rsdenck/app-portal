@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 $error = '';
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
@@ -43,11 +44,6 @@ render_header('Atendente · Login', null, false);
       <div class="auth-footer-info">
         <div class="muted">IP registrado para auditoria.</div>
         <div class="muted">Sessão protegida por TLS 1.3.</div>
-      </div>
-
-      <div class="auth-switch-wrapper">
-        <div class="auth-switch-label">É um cliente?</div>
-        <a class="btn-block" href="/index.php">Voltar para Área do Cliente</a>
       </div>
     </div>
     <div class="auth-side">

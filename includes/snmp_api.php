@@ -5,6 +5,42 @@
  * Supports SNMP v1, v2c, and v3
  */
 
+// Initialize MIBDIRS to include DFLOW vendor MIBs
+function snmp_init_mibs() {
+    $mibsPath = realpath(__DIR__ . '/../mibs');
+    if ($mibsPath) {
+        // Build MIBDIRS string (recursive search for subfolders)
+        $dirs = [$mibsPath];
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($mibsPath, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+        foreach ($it as $file) {
+            if ($file->isDir()) {
+                $dirs[] = $file->getRealPath();
+            }
+        }
+        
+        $separator = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') ? ';' : ':';
+        $currentMibDirs = getenv('MIBDIRS') ?: '';
+        $newMibDirs = implode($separator, $dirs);
+        
+        if ($currentMibDirs) {
+            $newMibDirs .= $separator . $currentMibDirs;
+        }
+        
+        putenv("MIBDIRS=$newMibDirs");
+        
+        // Attempt to load ALL available MIBs
+        if (function_exists('snmp_read_mib')) {
+            @snmp_read_mib('ALL');
+        }
+    }
+}
+
+// Auto-initialize MIBs on load
+snmp_init_mibs();
+
 /**
  * Get basic SNMP data from a device
  */

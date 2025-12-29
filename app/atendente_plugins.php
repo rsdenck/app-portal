@@ -1,19 +1,56 @@
 <?php
 
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 $user = require_login('atendente');
 $plugins = plugins_get_all($pdo);
+
+// Filtrar por categoria se solicitado
+$filterCategory = $_GET['category'] ?? null;
+if ($filterCategory) {
+    $plugins = array_filter($plugins, function($p) use ($filterCategory) {
+        $cat = $p['category'] ?: 'Outros';
+        if ($filterCategory === 'Redes' && in_array($cat, ['Inteligência', 'Segurança'])) {
+            return true;
+        }
+        return $cat === $filterCategory;
+    });
+}
 
 // Agrupar plugins por categoria
 $groupedPlugins = [];
 foreach ($plugins as $p) {
     $cat = $p['category'] ?: 'Outros';
+    if (in_array($cat, ['Inteligência', 'Segurança'])) {
+        $cat = 'Redes';
+    }
     if (!isset($groupedPlugins[$cat])) {
         $groupedPlugins[$cat] = [];
     }
     $groupedPlugins[$cat][] = $p;
 }
+
+// Sort categories by priority
+$priority = [
+    'Redes' => 1,
+    'Segurança' => 2,
+    'Virtualização' => 3,
+    'Monitoramento' => 4,
+    'Backup' => 5,
+    'Acesso Remoto' => 6,
+    'Hospedagem' => 7,
+    'Email' => 8,
+    'Inteligência' => 9
+];
+
+uksort($groupedPlugins, function($a, $b) use ($priority) {
+    $pA = $priority[$a] ?? 99;
+    $pB = $priority[$b] ?? 99;
+    if ($pA !== $pB) return $pA - $pB;
+    return strcmp($a, $b);
+});
+
 
 // Ordenar categorias (Prioridade manual)
 $priority = [
@@ -40,7 +77,7 @@ render_header('Atendente · Plugins', $user);
 
 <div class="card" style="margin-bottom:18px">
   <div style="font-weight:700;margin-bottom:6px">Plugins</div>
-  <div class="muted" style="margin-bottom:12px">Configure integrações com ferramentas de monitoramento, backup e outros serviços via API.</div>
+  <div class="muted" style="margin-bottom:12px">Configure integrações com ferramentas de rede, monitoramento, backup e outros serviços via API ou nativos.</div>
   
   <div class="category-list">
     <?php foreach ($groupedPlugins as $category => $items): ?>
@@ -112,13 +149,23 @@ render_header('Atendente · Plugins', $user);
                   <div class="plugin-desc"><?= h($p['description']) ?></div>
                 </div>
               </div>
-              <div class="plugin-actions">
-                <div class="plugin-status-indicator">
-                  <span class="status-dot <?= $p['is_active'] ? 'status-active' : '' ?>"></span>
-                  <?= $p['is_active'] ? 'Ativo' : 'Inativo' ?>
+                <div class="plugin-actions">
+                  <div class="plugin-status-indicator">
+                    <span class="status-dot <?= $p['is_active'] ? 'status-active' : '' ?>"></span>
+                    <?= $p['is_active'] ? 'Ativo' : 'Inativo' ?>
+                  </div>
+                  <?php if ($p['is_active']): ?>
+                    <?php 
+                    $pluginPage = "plugin_" . $p['name'] . ".php";
+                    if ($p['name'] === 'deepflow' || $p['name'] === 'netflow') {
+                        $pluginPage = "plugin_dflow_maps.php";
+                    }
+                    if (file_exists(__DIR__ . '/' . $pluginPage)): ?>
+                      <a href="/app/<?= $pluginPage ?>" class="btn primary">Acessar</a>
+                    <?php endif; ?>
+                  <?php endif; ?>
+                  <a href="/app/atendente_plugin_config.php?name=<?= urlencode($p['name']) ?>" class="btn">Configurar</a>
                 </div>
-                <a href="/app/atendente_plugin_config.php?name=<?= urlencode($p['name']) ?>" class="btn">Configurar</a>
-              </div>
             </div>
           <?php endforeach; ?>
         </div>

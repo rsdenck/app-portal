@@ -77,23 +77,8 @@ a{color:var(--primary);text-decoration:none}
 .sidebar-logo-img{height:49px;display:block}
 .sidebar-group{margin-bottom:10px}
 .sidebar-footer{margin-top:auto;display:flex;flex-direction:column;gap:8px}
-.sidebar-category{margin-bottom:4px}
-.sidebar-category-header{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;font-size:14px;color:var(--muted);cursor:pointer;transition:all .2s ease;user-select:none}
-body.theme-light .os-icon {
-    filter: brightness(0);
-}
-body.theme-light .sidebar-logo-img {
-    filter: none;
-}
-.sidebar-category-header:hover{background:var(--panel-side);color:var(--text)}
-.sidebar-category-header .category-chevron{width:14px;height:14px;margin-left:auto;transition:transform .2s ease}
-.sidebar-category.category-open .sidebar-category-header{color:var(--text)}
-.sidebar-category.category-open .category-chevron{transform:rotate(180deg)}
-.sidebar-category-content{display:none;padding-left:12px;margin-top:4px}
-.sidebar-category.category-open .sidebar-category-content{display:block}
-.sidebar-sub-group{border-left:1px solid var(--border);margin-left:20px;margin-top:4px;display:flex;flex-direction:column;gap:2px}
-.side-link{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;font-size:14px;color:var(--muted);border:1px solid transparent;transition:all .2s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sidebar-icon{width:18px;height:18px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2}
+.side-link{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;font-size:14px;color:var(--muted);border:1px solid transparent;transition:all .2s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1}
+.sidebar-icon{width:18px;height:18px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2;display:block}
 .side-link:hover{background:var(--panel-side);border-color:var(--border);color:var(--text)}
 .side-link-active{background:rgba(39,196,168,.12);border-color:rgba(39,196,168,.35);color:var(--primary)}
 .side-link-disabled{opacity:.5;cursor:default}

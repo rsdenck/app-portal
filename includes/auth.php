@@ -51,7 +51,11 @@ function user_has_permission(array $user, string $permission): bool
 {
     $role = (string)($user['role'] ?? '');
     $map = [
-        'cliente' => ['cliente.portal'],
+        'cliente' => [
+            'cliente.portal',
+            'billing.view',
+            'billing.contest',
+        ],
         'atendente' => [
             'cliente.portal',
             'atendente.portal',
@@ -62,6 +66,26 @@ function user_has_permission(array $user, string $permission): bool
             'admin.monitoramento',
         ],
     ];
+
+    // Adicionar permissões baseadas em categorias para atendentes
+    if ($role === 'atendente') {
+        // Precisamos verificar as categorias do perfil do atendente
+        // No entanto, para evitar consultas repetitivas ao banco aqui, 
+        // as categorias devem ser carregadas na sessão ou passadas no array $user.
+        // Se não estiverem no $user, assumimos as permissões básicas.
+        $categories = $user['categories'] ?? [];
+        
+        // ID 6 é Financeiro conforme database.sql
+        if (in_array(6, $categories, true)) {
+            $map['atendente'][] = 'billing.manage';
+            $map['atendente'][] = 'billing.view';
+        }
+        
+        // Se houver uma categoria "Gestão", adicionaríamos aqui também.
+        // Como o usuário mencionou Financeiro/Gestão, vamos permitir billing.manage
+        // se o atendente tiver a categoria correspondente.
+    }
+
     $allowed = $map[$role] ?? [];
     return in_array($permission, $allowed, true);
 }

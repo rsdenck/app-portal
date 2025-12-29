@@ -8,6 +8,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 require_once __DIR__ . '/../includes/repository.php';
 
 echo "[" . date('Y-m-d H:i:s') . "] Starting vCenter Alerts Engine...\n";

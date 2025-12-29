@@ -227,8 +227,37 @@ INSERT IGNORE INTO asset_types (id, name) VALUES
   (5, 'Impressora'),
   (6, 'Outro');
 
--- Senha padrão para o administrador inicial: admin123
+-- Senha padrï¿½o para o administrador inicial: admin123
 INSERT IGNORE INTO users (id, role, name, email, password_hash) VALUES
   (1, 'atendente', 'Administrador', 'admin@portal.com', '.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
 
 INSERT IGNORE INTO attendant_profiles (user_id, department) VALUES (1, 'TI');
+
+CREATE TABLE IF NOT EXISTS billing_invoices (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  client_user_id BIGINT UNSIGNED NOT NULL,
+  amount DECIMAL(15, 2) NOT NULL,
+  due_date DATE NOT NULL,
+  status ENUM('pending', 'paid', 'cancelled') DEFAULT 'pending',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_billing_invoices_client (client_user_id),
+  CONSTRAINT fk_billing_invoices_client FOREIGN KEY (client_user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS billing_items (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  client_user_id BIGINT UNSIGNED NOT NULL,
+  invoice_id BIGINT UNSIGNED DEFAULT NULL,
+  description VARCHAR(255) NOT NULL,
+  amount DECIMAL(15, 2) NOT NULL,
+  type VARCHAR(50) DEFAULT 'Cloud',
+  status ENUM('pending', 'invoiced', 'contested', 'cancelled') DEFAULT 'pending',
+  billing_date DATE NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_billing_items_client (client_user_id),
+  KEY idx_billing_items_invoice (invoice_id),
+  CONSTRAINT fk_billing_items_client FOREIGN KEY (client_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_billing_items_invoice FOREIGN KEY (invoice_id) REFERENCES billing_invoices(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

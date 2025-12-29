@@ -4,6 +4,48 @@ declare(strict_types=1);
 function render_sidebar_icon(string $icon): void
 {
     switch ($icon) {
+        case 'settings':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'dashboard':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="9 22 9 12 15 12 15 22" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'ticket':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'users':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'user-check':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="16 11 18 13 22 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'user':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'briefcase':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'box':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12" y2="21" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'monitor':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'folder':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'dollar-sign':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'pie-chart':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83" fill="none" stroke="currentColor" stroke-width="2"/><path d="M22 12A10 10 0 0 0 12 2v10z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'book':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'log-out':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="16 17 21 12 16 7" fill="none" stroke="currentColor" stroke-width="2"/><line x1="21" y1="12" x2="9" y2="12" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
         case 'activity':
             echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
             break;
@@ -28,14 +70,11 @@ function render_sidebar_icon(string $icon): void
         case 'bar-chart':
             echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10" fill="none" stroke="currentColor" stroke-width="2"/><line x1="18" y1="20" x2="18" y2="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="6" y1="20" x2="6" y2="16" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
             break;
-        case 'monitor':
-            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12" y2="21" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
-            break;
         case 'vm':
             echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 21h8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 17v4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 8l5 3 5-3-5-3-5 3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 12l5 3 5-3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
             break;
         case 'cpu':
-            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="9" y="9" width="6" height="6" fill="none" stroke="currentColor" stroke-width="2"/><line x1="9" y1="1" x2="9" y2="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="15" y1="1" x2="15" y2="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="9" y1="20" x2="9" y2="23" fill="none" stroke="currentColor" stroke-width="2"/><line x1="15" y1="20" x2="15" y2="23" fill="none" stroke="currentColor" stroke-width="2"/><line x1="20" y1="9" x2="23" y2="9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="15" y1="20" x2="15" y2="23" fill="none" stroke="currentColor" stroke-width="2"/><line x1="20" y1="9" x2="23" y2="9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="20" y1="15" x2="23" y2="15" fill="none" stroke="currentColor" stroke-width="2"/><line x1="1" y1="9" x2="4" y2="9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="1" y1="15" x2="4" y2="15" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="9" y="9" width="6" height="6" fill="none" stroke="currentColor" stroke-width="2"/><line x1="9" y1="1" x2="9" y2="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="15" y1="1" x2="15" y2="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="9" y1="20" x2="9" y2="23" fill="none" stroke="currentColor" stroke-width="2"/><line x1="15" y1="20" x2="15" y2="23" fill="none" stroke="currentColor" stroke-width="2"/><line x1="20" y1="9" x2="23" y2="9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="1" y1="9" x2="4" y2="9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="1" y1="15" x2="4" y2="15" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
             break;
         case 'search':
             echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
@@ -45,6 +84,9 @@ function render_sidebar_icon(string $icon): void
             break;
         case 'zap':
             echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+            break;
+        case 'bank':
+            echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M3 21h18M3 7v14M21 7v14M9 21V11m6 10V11M12 3L2 7h20L12 3z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
             break;
         default:
             echo '<svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
@@ -58,6 +100,12 @@ function render_header(string $title, ?array $user = null, bool $showLayout = tr
     $sessionUser = $user ?? current_user();
     $role = $sessionUser['role'] ?? null;
     $script = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+    $isConfigActive = str_contains($script, 'atendente_config.php') || 
+                      str_contains($script, 'atendente_conta.php') || 
+                      str_contains($script, 'atendente_definicoes.php') ||
+                      str_contains($script, 'atendente_plugins.php') ||
+                      str_contains($script, 'atendente_plugin_config.php');
+    $isEmbed = isset($_GET['embed']) && $_GET['embed'] === '1';
     ?>
     <!doctype html>
     <html lang="pt-br">
@@ -69,6 +117,13 @@ function render_header(string $title, ?array $user = null, bool $showLayout = tr
       <link rel="icon" href="/assets/favicon.png" type="image/png">
       <link rel="shortcut icon" href="/assets/favicon.png" type="image/png">
       <link rel="stylesheet" href="/assets/style.css">
+      <?php if ($isEmbed): ?>
+      <style>
+        body { background: transparent !important; padding: 0 !important; margin: 0 !important; }
+        .container { max-width: 100% !important; padding: 0 !important; }
+        .card { margin: 0 !important; border-radius: 0 !important; border: none !important; box-shadow: none !important; }
+      </style>
+      <?php endif; ?>
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       <script>
       document.addEventListener('DOMContentLoaded', function () {
@@ -155,7 +210,7 @@ function render_header(string $title, ?array $user = null, bool $showLayout = tr
       </script>
     </head>
     <body<?= !$showLayout ? ' class="auth-body"' : '' ?>>
-    <?php if ($sessionUser && $showLayout): ?>
+    <?php if ($sessionUser && $showLayout && !$isEmbed): ?>
       <div class="app-shell">
         <aside class="sidebar">
           <div class="sidebar-header">
@@ -166,11 +221,11 @@ function render_header(string $title, ?array $user = null, bool $showLayout = tr
           <?php if ($role === 'cliente'): ?>
             <div class="sidebar-group">
               <a class="side-link<?= str_ends_with($script, '/cliente_chamado.php') ? ' side-link-active' : '' ?>" href="/client/cliente_chamado.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('ticket'); ?>
                 <span class="side-link-text">Chamados</span>
               </a>
               <a class="side-link<?= str_ends_with($script, '/cliente_hosts.php') ? ' side-link-active' : '' ?>" href="/client/cliente_hosts.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('monitor'); ?>
                 <span class="side-link-text">Monitoramento</span>
               </a>
 
@@ -179,151 +234,137 @@ function render_header(string $title, ?array $user = null, bool $showLayout = tr
                 $groupedMenus = plugin_get_menus($pdo, $sessionUser, $activePlugins);
                 foreach ($groupedMenus as $categoryName => $cat):
                   if ($categoryName === 'Monitoramento') continue;
-                  $isCatActive = false;
-                  foreach ($cat['plugins'] as $p) {
-                    if (str_starts_with($script, str_replace('.php', '', $p['url']))) {
-                      $isCatActive = true;
-                      break;
+                  
+                  // Verificar se a categoria está ativa (pelo parâmetro na URL ou se um plugin dela está aberto)
+                  $isCatActive = ($_GET['category'] ?? '') === $categoryName;
+                  if (!$isCatActive) {
+                    foreach ($cat['plugins'] as $p) {
+                      if (str_starts_with($script, str_replace('.php', '', $p['url']))) {
+                        $isCatActive = true;
+                        break;
+                      }
                     }
                   }
               ?>
-                <div class="sidebar-category">
-                  <div class="sidebar-category-header" onclick="this.parentElement.classList.toggle('category-open')">
-                    <?php render_sidebar_icon($cat['icon']); ?>
-                    <span class="side-link-text"><?= h($categoryName) ?></span>
-                    <svg class="category-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                  </div>
-                  <div class="sidebar-category-content" style="<?= $isCatActive ? 'display:block' : '' ?>">
-                    <?php foreach ($cat['plugins'] as $pm): 
-                      $isActive = str_starts_with($script, str_replace('.php', '', $pm['url']));
-                    ?>
-                      <a class="side-link<?= $isActive ? ' side-link-active' : '' ?>" href="<?= h($pm['url']) ?>">
-                        <span class="side-link-text"><?= h($pm['label']) ?></span>
-                      </a>
-                      <?php if (!empty($pm['sub']) && $isActive): ?>
-                        <div class="sidebar-sub-group" style="padding-left: 20px;">
-                          <?php foreach ($pm['sub'] as $sub): ?>
-                            <a class="side-link<?= str_ends_with($script, $sub['url']) ? ' side-link-active' : '' ?>" href="<?= h($sub['url']) ?>" style="font-size: 0.85rem; padding: 6px 12px;">
-                              <span class="side-link-text"><?= h($sub['label']) ?></span>
-                            </a>
-                          <?php endforeach; ?>
-                        </div>
-                      <?php endif; ?>
-                    <?php endforeach; ?>
-                  </div>
-                </div>
+                <?php
+                  $targetUrl = "/app/atendente_plugins.php?category=" . urlencode($categoryName);
+                  if ($role === 'atendente' && $categoryName === 'Redes') {
+                    $targetUrl = "/app/plugin_dflow_maps.php";
+                  }
+                ?>
+                <a class="side-link<?= $isCatActive ? ' side-link-active' : '' ?>" href="<?= $targetUrl ?>">
+                  <?php render_sidebar_icon($cat['icon']); ?>
+                  <span class="side-link-text"><?= h($categoryName) ?></span>
+                </a>
               <?php endforeach; ?>
 
               <a class="side-link<?= str_ends_with($script, '/cliente_ativos.php') ? ' side-link-active' : '' ?>" href="/client/cliente_ativos.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12" y2="21" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('box'); ?>
                 <span class="side-link-text">Ativos</span>
               </a>
               <a class="side-link<?= str_ends_with($script, '/cliente_boleto.php') ? ' side-link-active' : '' ?>" href="/client/cliente_boleto.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M4 10h16M4 14h16M4 18h16M4 6h16" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('activity'); ?>
                 <span class="side-link-text">Boletos</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/cliente_billing.php') ? ' side-link-active' : '' ?>" href="/client/cliente_billing.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                <span class="side-link-text">Billing</span>
-              </a>
+              <?php if (user_has_permission($sessionUser, 'billing.view')): ?>
+                <a class="side-link<?= str_ends_with($script, '/cliente_billing.php') ? ' side-link-active' : '' ?>" href="/client/cliente_billing.php">
+                  <?php render_sidebar_icon('dollar-sign'); ?>
+                  <span class="side-link-text">Billing</span>
+                </a>
+              <?php endif; ?>
               <a class="side-link<?= str_ends_with($script, '/cliente_relatorios.php') ? ' side-link-active' : '' ?>" href="/client/cliente_relatorios.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83" fill="none" stroke="currentColor" stroke-width="2"/><path d="M22 12A10 10 0 0 0 12 2v10z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('pie-chart'); ?>
                 <span class="side-link-text">Relatórios</span>
               </a>
               <a class="side-link<?= str_ends_with($script, '/cliente_config.php') ? ' side-link-active' : '' ?>" href="/client/cliente_config.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('settings'); ?>
                 <span class="side-link-text">Configurações</span>
               </a>
             </div>
           <?php elseif ($role === 'atendente'): ?>
             <div class="sidebar-group">
               <a class="side-link<?= str_ends_with($script, '/atendente_gestao.php') ? ' side-link-active' : '' ?>" href="/app/atendente_gestao.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="9 22 9 12 15 12 15 22" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('dashboard'); ?>
                 <span class="side-link-text">Dashboard</span>
               </a>
               <a class="side-link<?= str_ends_with($script, '/atendente_fila.php') ? ' side-link-active' : '' ?>" href="/app/atendente_fila.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('ticket'); ?>
                 <span class="side-link-text">Chamados</span>
               </a>
               <a class="side-link<?= str_ends_with($script, '/atendente_atendimentos.php') ? ' side-link-active' : '' ?>" href="/app/atendente_atendimentos.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('users'); ?>
                 <span class="side-link-text">Atendimentos</span>
               </a>
               <a class="side-link<?= str_ends_with($script, '/tk_atendente.php') ? ' side-link-active' : '' ?>" href="/app/tk_atendente.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="16 11 18 13 22 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('user-check'); ?>
                 <span class="side-link-text">Usuários</span>
               </a>
               <a class="side-link<?= str_ends_with($script, '/tk_cliente.php') ? ' side-link-active' : '' ?>" href="/app/tk_cliente.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('user'); ?>
                 <span class="side-link-text">Clientes</span>
               </a>
               <a class="side-link<?= str_ends_with($script, '/tk_empresas.php') ? ' side-link-active' : '' ?>" href="/app/tk_empresas.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M3 21h18M3 7v14M21 7v14M9 21V11m6 10V11M12 3L2 7h20L12 3z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('bank'); ?>
                 <span class="side-link-text">Empresas</span>
               </a>
               <a class="side-link<?= str_ends_with($script, '/atendente_ativos.php') ? ' side-link-active' : '' ?>" href="/app/atendente_ativos.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="21" x2="16" y2="21" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="17" x2="12" y2="21" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('box'); ?>
                 <span class="side-link-text">Ativos</span>
               </a>
               <a class="side-link<?= str_ends_with($script, '/atendente_monitoramento.php') ? ' side-link-active' : '' ?>" href="/app/atendente_monitoramento.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('monitor'); ?>
                 <span class="side-link-text">Monitoramento</span>
               </a>
               <a class="side-link<?= (str_ends_with($script, '/atendente_projetos.php') || str_ends_with($script, '/atendente_projeto_view.php')) ? ' side-link-active' : '' ?>" href="/app/atendente_projetos.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('folder'); ?>
                 <span class="side-link-text">Projetos</span>
               </a>
+
+              <?php if (user_has_permission($sessionUser, 'billing.manage')): ?>
+                <a class="side-link<?= str_ends_with($script, '/atendente_billing.php') ? ' side-link-active' : '' ?>" href="/app/atendente_billing.php">
+                  <?php render_sidebar_icon('dollar-sign'); ?>
+                  <span class="side-link-text">Billing</span>
+                </a>
+              <?php endif; ?>
 
               <?php
                 $activePlugins = plugins_get_active($pdo);
                 $groupedMenus = plugin_get_menus($pdo, $sessionUser, $activePlugins);
                 foreach ($groupedMenus as $categoryName => $cat):
                   if ($categoryName === 'Monitoramento') continue;
-                  $isCatActive = false;
-                  foreach ($cat['plugins'] as $p) {
-                    if (str_starts_with($script, str_replace('.php', '', $p['url']))) {
-                      $isCatActive = true;
-                      break;
+                  
+                  // Verificar se a categoria está ativa
+                  $isCatActive = ($_GET['category'] ?? '') === $categoryName;
+                  if (!$isCatActive) {
+                    foreach ($cat['plugins'] as $p) {
+                      if (str_starts_with($script, str_replace('.php', '', $p['url']))) {
+                        $isCatActive = true;
+                        break;
+                      }
                     }
                   }
+
+                  $targetUrl = "/app/atendente_plugins.php?category=" . urlencode($categoryName);
+                  if ($categoryName === 'Redes') {
+                    $targetUrl = "/app/plugin_dflow_maps.php";
+                  }
               ?>
-                <div class="sidebar-category">
-                  <div class="sidebar-category-header" onclick="this.parentElement.classList.toggle('category-open')">
-                    <?php render_sidebar_icon($cat['icon']); ?>
-                    <span class="side-link-text"><?= h($categoryName) ?></span>
-                    <svg class="category-chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                  </div>
-                  <div class="sidebar-category-content" style="<?= $isCatActive ? 'display:block' : '' ?>">
-                    <?php foreach ($cat['plugins'] as $pm): 
-                      $isActive = str_starts_with($script, str_replace('.php', '', $pm['url']));
-                    ?>
-                      <a class="side-link<?= $isActive ? ' side-link-active' : '' ?>" href="<?= h($pm['url']) ?>">
-                        <span class="side-link-text"><?= h($pm['label']) ?></span>
-                      </a>
-                      <?php if (!empty($pm['sub']) && $isActive): ?>
-                        <div class="sidebar-sub-group" style="padding-left: 20px;">
-                          <?php foreach ($pm['sub'] as $sub): ?>
-                            <a class="side-link<?= str_ends_with($script, $sub['url']) ? ' side-link-active' : '' ?>" href="<?= h($sub['url']) ?>" style="font-size: 0.85rem; padding: 6px 12px;">
-                              <span class="side-link-text"><?= h($sub['label']) ?></span>
-                            </a>
-                          <?php endforeach; ?>
-                        </div>
-                      <?php endif; ?>
-                    <?php endforeach; ?>
-                  </div>
-                </div>
+                <a class="side-link<?= $isCatActive ? ' side-link-active' : '' ?>" href="<?= $targetUrl ?>">
+                  <?php render_sidebar_icon($cat['icon']); ?>
+                  <span class="side-link-text"><?= h($categoryName) ?></span>
+                </a>
               <?php endforeach; ?>
 
               <a class="side-link<?= str_ends_with($script, '/atendente_relatorios.php') ? ' side-link-active' : '' ?>" href="/app/atendente_relatorios.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83" fill="none" stroke="currentColor" stroke-width="2"/><path d="M22 12A10 10 0 0 0 12 2v10z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('pie-chart'); ?>
                 <span class="side-link-text">Relatórios</span>
               </a>
               <a class="side-link<?= str_ends_with($script, '/tk_docs.php') ? ' side-link-active' : '' ?>" href="/app/tk_docs.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                <?php render_sidebar_icon('book'); ?>
                 <span class="side-link-text">Documentação</span>
               </a>
-              <a class="side-link<?= str_ends_with($script, '/atendente_config.php') ? ' side-link-active' : '' ?>" href="/app/atendente_config.php">
-                <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              <a class="side-link<?= str_ends_with($script, '/atendente_config.php') || str_ends_with($script, '/atendente_conta.php') || str_ends_with($script, '/atendente_definicoes.php') || str_ends_with($script, '/atendente_plugins.php') || str_ends_with($script, '/atendente_plugin_config.php') ? ' side-link-active' : '' ?>" href="/app/atendente_config.php">
+                <?php render_sidebar_icon('settings'); ?>
                 <span class="side-link-text">Configurações</span>
               </a>
             </div>
@@ -331,7 +372,7 @@ function render_header(string $title, ?array $user = null, bool $showLayout = tr
           <div class="sidebar-footer">
             <button class="btn sidebar-collapse-toggle" type="button" data-sidebar-collapse>Encolher menu</button>
             <a class="side-link" href="/logout.php">
-              <svg class="sidebar-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="16 17 21 12 16 7" fill="none" stroke="currentColor" stroke-width="2"/><line x1="21" y1="12" x2="9" y2="12" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+              <?php render_sidebar_icon('log-out'); ?>
               <span class="side-link-text">Sair</span>
             </a>
           </div>
@@ -340,14 +381,7 @@ function render_header(string $title, ?array $user = null, bool $showLayout = tr
           <div class="container">
             <div class="topbar">
               <div style="display:flex;gap:8px;align-items:center">
-                <?php if (isset($_SERVER['HTTP_REFERER']) && !empty($_SERVER['HTTP_REFERER']) && !str_contains($_SERVER['HTTP_REFERER'], $_SERVER['SCRIPT_NAME'])): ?>
-                  <a href="<?= h($_SERVER['HTTP_REFERER']) ?>" class="btn" style="padding:8px; display:flex; align-items:center; gap:4px">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
-                    <span>Voltar</span>
-                  </a>
-                <?php endif; ?>
+                <!-- Back button removed as it was redundant -->
               </div>
               <div style="display:flex;gap:8px;align-items:center">
                 <?php

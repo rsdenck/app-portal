@@ -29,6 +29,14 @@ Thumbs.db
 # Logs
 *.log
 logs/
+*.err
+*.err.txt
+*.pid
+*.pem
+*.index
+
+# Backups
+backup/
 
 # Dependencies
 vendor/

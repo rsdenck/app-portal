@@ -9,6 +9,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 echo "[" . date('Y-m-d H:i:s') . "] Starting vCenter Data Collection...\n";
 

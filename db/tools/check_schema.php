@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 echo "=== Verificação de Schema do Banco de Dados ===\n";
 

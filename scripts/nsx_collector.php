@@ -9,6 +9,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 // nsx_api.php is already included in bootstrap.php
 
 echo "[" . date('Y-m-d H:i:s') . "] Starting NSX Data Collection...\n";

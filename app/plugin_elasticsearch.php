@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 $user = require_login();
 
 $esPlugin = plugin_get_by_name($pdo, 'elasticsearch');

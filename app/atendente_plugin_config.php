@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 $user = require_login('atendente');
 $pluginName = $_GET['name'] ?? '';
@@ -71,7 +72,17 @@ render_header('Configurar Plugin · ' . $plugin['label'], $user);
     </div>
 
     <div class="config-section" style="margin-top:24px">
-      <div style="font-weight:600;margin-bottom:12px">Configurações da API</div>
+      <div style="font-weight:600;margin-bottom:12px">
+        <?php 
+          if ($pluginName === 'dflow') {
+              echo 'Parâmetros do Engine DFlow (Nativo)';
+          } elseif (in_array($plugin['category'], ['Redes', 'Segurança', 'Inteligência'])) {
+              echo 'Configurações do Serviço';
+          } else {
+              echo 'Configurações da API';
+          }
+        ?>
+      </div>
       
       <?php if ($pluginName === 'zabbix'): ?>
         <div class="row">
@@ -95,6 +106,83 @@ render_header('Configurar Plugin · ' . $plugin['label'], $user);
             <label>
               <input type="checkbox" name="config[ignore_ssl]" value="1" <?= ($plugin['config']['ignore_ssl'] ?? '') === '1' ? 'checked' : '' ?>>
               Ignorar validação SSL
+            </label>
+          </div>
+        </div>
+
+      <?php elseif ($pluginName === 'dflow'): ?>
+        <div class="row">
+          <div class="col">
+            <label>Modo de Captura Principal</label>
+            <select name="config[capture_mode]" class="btn" style="width:100%; background:var(--input-bg)">
+              <option value="pcap" <?= ($plugin['config']['capture_mode'] ?? 'pcap') === 'pcap' ? 'selected' : '' ?>>libpcap (Standard)</option>
+              <option value="af_packet" <?= ($plugin['config']['capture_mode'] ?? '') === 'af_packet' ? 'selected' : '' ?>>AF_PACKET (Linux Native)</option>
+              <option value="dpdk" <?= ($plugin['config']['capture_mode'] ?? '') === 'dpdk' ? 'selected' : '' ?>>DPDK (High Performance)</option>
+              <option value="snmp_flow" <?= ($plugin['config']['capture_mode'] ?? '') === 'snmp_flow' ? 'selected' : '' ?>>SNMP + Flow Correlation</option>
+            </select>
+          </div>
+        </div>
+        <div class="row" style="margin-top:15px">
+          <div class="col">
+            <label>Interface de Monitoramento (Ex: eth0, bond0)</label>
+            <input name="config[interface]" value="<?= h($plugin['config']['interface'] ?? 'any') ?>">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label>
+              <input type="checkbox" name="config[enable_dpi]" value="1" <?= ($plugin['config']['enable_dpi'] ?? '1') === '1' ? 'checked' : '' ?>>
+              Habilitar Deep Packet Inspection (DPI) L7
+            </label>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label>
+              <input type="checkbox" name="config[correlate_snmp]" value="1" <?= ($plugin['config']['correlate_snmp'] ?? '') === '1' ? 'checked' : '' ?>>
+              Correlacionar Fluxos com Dados SNMP (OIDs de Interface)
+            </label>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label>
+              <input type="checkbox" name="config[enable_geomap]" value="1" <?= ($plugin['config']['enable_geomap'] ?? '1') === '1' ? 'checked' : '' ?>>
+              Habilitar GeoMap de Hosts (IPinfoDB / ipinfo.io)
+            </label>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label>
+              <input type="checkbox" name="config[enable_threat_intel]" value="1" <?= ($plugin['config']['enable_threat_intel'] ?? '1') === '1' ? 'checked' : '' ?>>
+              Integração Threat Intel (AbuseIPDB / Shodan)
+            </label>
+          </div>
+        </div>
+
+      <?php elseif (in_array($pluginName, ['proxmox', 'cloudstack', 'nutanix', 'hyperv', 'xen', 'kvm'])): ?>
+        <div class="row">
+          <div class="col">
+            <label>Endpoint API / URL</label>
+            <input name="config[url]" value="<?= h($plugin['config']['url'] ?? '') ?>" placeholder="https://api.exemplo.com:8006">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label>Usuário / API Key ID</label>
+            <input name="config[username]" value="<?= h($plugin['config']['username'] ?? '') ?>" placeholder="root@pam ou API-Key-ID">
+          </div>
+          <div class="col">
+            <label>Senha / API Token</label>
+            <input name="config[password]" type="password" value="<?= h($plugin['config']['password'] ?? '') ?>" placeholder="******">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label>
+              <input type="checkbox" name="config[verify_ssl]" value="1" <?= ($plugin['config']['verify_ssl'] ?? '1') === '1' ? 'checked' : '' ?>>
+              Verificar Certificado SSL (Recomendado para Produção)
             </label>
           </div>
         </div>
@@ -601,6 +689,47 @@ render_header('Configurar Plugin · ' . $plugin['label'], $user);
             container.appendChild(div);
           }
         </script>
+
+      <?php elseif ($pluginName === 'dflow'): ?>
+        <div class="row">
+          <div class="col">
+            <label>Modo de Captura / Monitoramento</label>
+            <select name="config[capture_mode]" class="btn" style="width:100%; background:var(--input-bg)">
+              <option value="pcap" <?= ($plugin['config']['capture_mode'] ?? 'pcap') === 'pcap' ? 'selected' : '' ?>>libpcap (Standard)</option>
+              <option value="af_packet" <?= ($plugin['config']['capture_mode'] ?? '') === 'af_packet' ? 'selected' : '' ?>>AF_PACKET (Linux Native)</option>
+              <option value="dpdk" <?= ($plugin['config']['capture_mode'] ?? '') === 'dpdk' ? 'selected' : '' ?>>DPDK (High Performance)</option>
+              <option value="snmp_flow" <?= ($plugin['config']['capture_mode'] ?? '') === 'snmp_flow' ? 'selected' : '' ?>>SNMP + Flow Correlation</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>Interface de Rede</label>
+            <input name="config[interface]" value="<?= h($plugin['config']['interface'] ?? 'eth0') ?>" placeholder="eth0, ens3, etc">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label>Flow Timeout (segundos)</label>
+            <input type="number" name="config[flow_timeout]" value="<?= h($plugin['config']['flow_timeout'] ?? '300') ?>">
+          </div>
+          <div class="col">
+            <label>Flush Interval (segundos)</label>
+            <input type="number" name="config[flush_interval]" value="<?= h($plugin['config']['flush_interval'] ?? '60') ?>">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label>
+              <input type="checkbox" name="config[enable_l7]" value="1" <?= ($plugin['config']['enable_l7'] ?? '1') === '1' ? 'checked' : '' ?>>
+              Habilitar Análise L7 (DPI)
+            </label>
+          </div>
+          <div class="col">
+            <label>
+              <input type="checkbox" name="config[enable_tls]" value="1" <?= ($plugin['config']['enable_tls'] ?? '1') === '1' ? 'checked' : '' ?>>
+              Extrair Metadados TLS (SNI/JA3)
+            </label>
+          </div>
+        </div>
 
       <?php elseif (in_array($pluginName, ['wazuh', 'nuclei', 'deepflow', 'guacamole', 'cloudflare', 'elasticsearch', 'netflow'])): ?>
         <div class="row">

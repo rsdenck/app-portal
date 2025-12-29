@@ -52,6 +52,179 @@ function plugins_ensure_table(PDO $pdo): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
     $pdo->exec($sqlVcenter);
 
+    // Persist table for generic Virtualization data
+    $sqlVirt = "CREATE TABLE IF NOT EXISTS plugin_virt_data (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        plugin_name VARCHAR(50) NOT NULL,
+        data_type VARCHAR(50) NOT NULL,
+        data_content JSON NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY `plugin_data_type` (`plugin_name`, `data_type`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlVirt);
+
+    // DFlow Data Tables
+    $sqlDflowInterfaces = "CREATE TABLE IF NOT EXISTS plugin_dflow_interfaces (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        if_index INT NOT NULL,
+        name VARCHAR(100),
+        description TEXT,
+        mac_address VARCHAR(17),
+        vlan INT DEFAULT 0,
+        speed BIGINT,
+        status VARCHAR(20),
+        in_bytes BIGINT DEFAULT 0,
+        out_bytes BIGINT DEFAULT 0,
+        in_packets BIGINT DEFAULT 0,
+        out_packets BIGINT DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY `idx_if_index` (`if_index`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlDflowInterfaces);
+
+    $sqlDflowHosts = "CREATE TABLE IF NOT EXISTS plugin_dflow_hosts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ip_address VARCHAR(45) NOT NULL,
+        hostname VARCHAR(255),
+        mac_address VARCHAR(17),
+        vlan INT,
+        asn INT,
+        country_code CHAR(2),
+        throughput_bps BIGINT DEFAULT 0,
+        total_bytes BIGINT DEFAULT 0,
+        active_flows INT DEFAULT 0,
+        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY `idx_ip_address` (`ip_address`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlDflowHosts);
+
+    $sqlDflowFlows = "CREATE TABLE IF NOT EXISTS plugin_dflow_flows (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        src_ip VARCHAR(45) NOT NULL,
+        src_port INT,
+        dst_ip VARCHAR(45) NOT NULL,
+        dst_port INT,
+        protocol VARCHAR(10),
+        application VARCHAR(50),
+        bytes BIGINT DEFAULT 0,
+        packets BIGINT DEFAULT 0,
+        vlan INT DEFAULT 0,
+        rtt_ms FLOAT DEFAULT NULL,
+        l7_proto VARCHAR(50) DEFAULT NULL,
+        start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        end_time TIMESTAMP NULL,
+        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        KEY `idx_src_ip` (`src_ip`),
+        KEY `idx_dst_ip` (`dst_ip`),
+        KEY `idx_application` (`application`),
+        KEY `idx_vlan` (`vlan`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlDflowFlows);
+
+    $sqlDflowTopology = "CREATE TABLE IF NOT EXISTS plugin_dflow_topology (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        local_device_ip VARCHAR(45) NOT NULL,
+        local_port_index INT NOT NULL,
+        remote_device_name VARCHAR(255),
+        remote_port_id VARCHAR(100),
+        remote_chassis_id VARCHAR(100),
+        remote_system_desc TEXT,
+        protocol ENUM('LLDP', 'CDP') NOT NULL,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY neighbor (local_device_ip, local_port_index, remote_chassis_id, remote_port_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlDflowTopology);
+
+    $sqlDflowVlans = "CREATE TABLE IF NOT EXISTS plugin_dflow_vlans (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        device_ip VARCHAR(45) NOT NULL,
+        vlan_id INT NOT NULL,
+        vlan_name VARCHAR(100),
+        vlan_status VARCHAR(20),
+        vlan_type VARCHAR(50),
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY device_vlan (device_ip, vlan_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlDflowVlans);
+
+    $sqlDflowDevices = "CREATE TABLE IF NOT EXISTS plugin_dflow_devices (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ip_address VARCHAR(45) NOT NULL,
+        hostname VARCHAR(255),
+        description TEXT,
+        vendor VARCHAR(100),
+        model VARCHAR(100),
+        os_version VARCHAR(100),
+        uptime BIGINT UNSIGNED,
+        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY device_ip (ip_address)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlDflowDevices);
+
+    $sqlDflowBaselines = "CREATE TABLE IF NOT EXISTS plugin_dflow_baselines (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        vlan_id INT NOT NULL,
+        hour_of_day INT NOT NULL,
+        avg_bytes BIGINT DEFAULT 0,
+        stddev_bytes BIGINT DEFAULT 0,
+        avg_packets BIGINT DEFAULT 0,
+        stddev_packets BIGINT DEFAULT 0,
+        sample_count INT DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY vlan_hour (vlan_id, hour_of_day)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlDflowBaselines);
+
+    $sqlDflowAlerts = "CREATE TABLE IF NOT EXISTS plugin_dflow_alerts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        type VARCHAR(50) NOT NULL,
+        severity ENUM('low', 'medium', 'high', 'critical') DEFAULT 'low',
+        subject VARCHAR(255) NOT NULL,
+        description TEXT,
+        source_ip VARCHAR(45),
+        target_ip VARCHAR(45),
+        vlan INT DEFAULT 0,
+        status ENUM('active', 'resolved', 'muted') DEFAULT 'active',
+        ticket_id INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        resolved_at TIMESTAMP NULL,
+        KEY `idx_status` (`status`),
+        KEY `idx_vlan` (`vlan`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlDflowAlerts);
+
+    // SNMP Data Tables
+    $sqlSnmpDevices = "CREATE TABLE IF NOT EXISTS plugin_snmp_devices (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ip_address VARCHAR(45) NOT NULL UNIQUE,
+        community VARCHAR(100),
+        version ENUM('v1', 'v2c', 'v3') DEFAULT 'v2c',
+        hostname VARCHAR(255),
+        sys_desc TEXT,
+        last_discovery TIMESTAMP NULL,
+        status VARCHAR(20) DEFAULT 'unknown',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlSnmpDevices);
+
+    $sqlSnmpInterfaces = "CREATE TABLE IF NOT EXISTS plugin_snmp_interfaces (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        device_id INT NOT NULL,
+        if_index INT NOT NULL,
+        if_name VARCHAR(100),
+        if_desc TEXT,
+        if_type INT,
+        if_speed BIGINT,
+        if_phys_address VARCHAR(50),
+        if_admin_status INT,
+        if_oper_status INT,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY `idx_device_if` (`device_id`, `if_index`),
+        CONSTRAINT fk_snmp_if_device FOREIGN KEY (device_id) REFERENCES plugin_snmp_devices(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlSnmpInterfaces);
+
     // Ensure column exists for older installations
     try {
         $pdo->exec("ALTER TABLE plugins ADD COLUMN required_category_slug VARCHAR(100) DEFAULT NULL AFTER icon");
@@ -71,8 +244,23 @@ function plugins_ensure_table(PDO $pdo): void
         $pdo->prepare("INSERT INTO ticket_categories (name, slug, schema_json) VALUES ('Redes', 'redes', '[]')")->execute();
     }
 
+    // Ensure Virtualização category exists
+    $stmtCatVirt = $pdo->prepare("SELECT id FROM ticket_categories WHERE slug = 'virtualizacao'");
+    $stmtCatVirt->execute();
+    if (!$stmtCatVirt->fetch()) {
+        $pdo->prepare("INSERT INTO ticket_categories (name, slug, schema_json) VALUES ('Virtualização', 'virtualizacao', '[]')")->execute();
+    }
+
     // Seed initial plugins if not exists
     $initialPlugins = [
+        [
+            'name' => 'dflow',
+            'label' => 'DFlow (Native)',
+            'category' => 'Redes',
+            'description' => 'Flow Analyser nativo com análise de pacotes em baixo nível, detecção de anomalias e mapa topológico vivo.',
+            'icon' => 'activity',
+            'required_category_slug' => 'redes'
+        ],
         [
             'name' => 'zabbix',
             'label' => 'Zabbix',
@@ -194,6 +382,54 @@ function plugins_ensure_table(PDO $pdo): void
             'required_category_slug' => 'redes'
         ],
         [
+            'name' => 'proxmox',
+            'label' => 'Proxmox VE API',
+            'category' => 'Virtualização',
+            'description' => 'Gestão de ambientes Proxmox VE.',
+            'icon' => 'server',
+            'required_category_slug' => 'virtualizacao'
+        ],
+        [
+            'name' => 'cloudstack',
+            'label' => 'Apache Cloudstack',
+            'category' => 'Virtualização',
+            'description' => 'Gestão de nuvem privada Apache Cloudstack.',
+            'icon' => 'cloud',
+            'required_category_slug' => 'virtualizacao'
+        ],
+        [
+            'name' => 'nutanix',
+            'label' => 'Nutanix Prism API',
+            'category' => 'Virtualização',
+            'description' => 'Gestão de infraestrutura hiperconvergente Nutanix.',
+            'icon' => 'box',
+            'required_category_slug' => 'virtualizacao'
+        ],
+        [
+            'name' => 'hyperv',
+            'label' => 'Hyper-V SCVMM',
+            'category' => 'Virtualização',
+            'description' => 'Gestão de ambientes Microsoft Hyper-V via SCVMM.',
+            'icon' => 'monitor',
+            'required_category_slug' => 'virtualizacao'
+        ],
+        [
+            'name' => 'xen',
+            'label' => 'XEN API (Citrix Hypervisor)',
+            'category' => 'Virtualização',
+            'description' => 'Gestão de ambientes XEN/Citrix Hypervisor.',
+            'icon' => 'activity',
+            'required_category_slug' => 'virtualizacao'
+        ],
+        [
+            'name' => 'kvm',
+            'label' => 'KVM API (Libvirt)',
+            'category' => 'Virtualização',
+            'description' => 'Gestão de ambientes KVM nativos via Libvirt API.',
+            'icon' => 'cpu',
+            'required_category_slug' => 'virtualizacao'
+        ],
+        [
             'name' => 'deepflow',
             'label' => 'Deepflow API',
             'category' => 'Redes',
@@ -307,6 +543,12 @@ function plugin_is_configured(array $plugin): bool
         case 'nsx':
         case 'veeam':
         case 'guacamole':
+        case 'proxmox':
+        case 'cloudstack':
+        case 'nutanix':
+        case 'hyperv':
+        case 'xen':
+        case 'kvm':
             return !empty($config['url']) && !empty($config['username']) && !empty($config['password']);
         
         case 'abuseipdb':
@@ -325,6 +567,7 @@ function plugin_is_configured(array $plugin): bool
         case 'elasticsearch':
             return !empty($config['url']);
 
+        case 'dflow':
         case 'nuclei':
         case 'cloudflare':
             // These might have optional or different config requirements, 
@@ -465,16 +708,27 @@ function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
         }
 
         $category = (string)$p['category'];
+        
+        // Merge Networking, Intelligence and Security for Attendants
+        if ($user['role'] === 'atendente' && in_array($category, ['Inteligência', 'Segurança'])) {
+            $category = 'Redes';
+        }
+
         if (!isset($groupedMenus[$category])) {
             $groupedMenus[$category] = [
                 'label' => $category,
-                'icon' => $p['icon'] ?: 'box',
+                'icon' => ($category === 'Redes') ? 'share-2' : ($p['icon'] ?: 'box'),
                 'plugins' => []
             ];
         }
 
         // Standardize URLs and labels
         $url = "/app/plugin_" . $p['name'] . ".php";
+        
+        // DFlow Hub Logic
+        if ($user['role'] === 'atendente' && in_array($p['name'], ['dflow', 'bgpview', 'snmp', 'ipinfo', 'netflow', 'deepflow'])) {
+            $url = "/app/plugin_dflow_maps.php"; // All network plugins point to the Hub
+        }
         
         // Custom logic for plugins with submenus or different entry points
         $sub = [];
@@ -483,6 +737,22 @@ function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
                 ['label' => 'Dashboard', 'url' => '/app/plugin_veeam.php'],
                 ['label' => 'Jobs', 'url' => '/app/plugin_veeam_jobs.php'],
                 ['label' => 'Repositórios', 'url' => '/app/plugin_veeam_repos.php']
+            ];
+        } elseif ($p['name'] === 'snmp') {
+            $sub = [
+                ['label' => 'Dashboard', 'url' => '/app/plugin_snmp.php'],
+                ['label' => 'Devices', 'url' => '/app/plugin_snmp_devices.php'],
+                ['label' => 'Interfaces', 'url' => '/app/plugin_snmp_interfaces.php'],
+                ['label' => 'Discovery', 'url' => '/app/plugin_snmp_discovery.php']
+            ];
+        } elseif (in_array($p['name'], ['dflow', 'deepflow', 'netflow'])) {
+            $sub = [
+                ['label' => 'Dashboard', 'url' => "/app/plugin_{$p['name']}.php"],
+                ['label' => 'Alertas', 'url' => "/app/plugin_{$p['name']}_alerts.php"],
+                ['label' => 'Hosts', 'url' => "/app/plugin_{$p['name']}_hosts.php"],
+                ['label' => 'Flows', 'url' => "/app/plugin_{$p['name']}_flows.php"],
+                ['label' => 'Maps', 'url' => "/app/plugin_{$p['name']}_maps.php"],
+                ['label' => 'Interfaces', 'url' => "/app/plugin_{$p['name']}_interfaces.php"]
             ];
         }
 
@@ -493,6 +763,37 @@ function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
             'icon' => (string)$p['icon'],
             'sub' => $sub
         ];
+    }
+
+    // Sort categories by priority
+    $priority = [
+        'Redes' => 1,
+        'Segurança' => 2,
+        'Virtualização' => 3,
+        'Monitoramento' => 4,
+        'Backup' => 5,
+        'Acesso Remoto' => 6,
+        'Hospedagem' => 7,
+        'Email' => 8,
+        'Inteligência' => 9
+    ];
+
+    uksort($groupedMenus, function($a, $b) use ($priority) {
+        $pA = $priority[$a] ?? 99;
+        $pB = $priority[$b] ?? 99;
+        if ($pA !== $pB) return $pA - $pB;
+        return strcmp($a, $b);
+    });
+
+    // Deduplicate Hub links in Redes for attendants
+    if ($user['role'] === 'atendente' && isset($groupedMenus['Redes'])) {
+        $groupedMenus['Redes']['plugins'] = [[
+            'name' => 'dflow_hub',
+            'label' => 'Central de Redes (Hub)',
+            'url' => '/app/plugin_dflow_maps.php',
+            'icon' => 'share-2',
+            'sub' => []
+        ]];
     }
 
     return $groupedMenus;

@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 // nsx_api.php is already included in bootstrap.php
 require __DIR__ . '/includes/security_logs_api.php';
 

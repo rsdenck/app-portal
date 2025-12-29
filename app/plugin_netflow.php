@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 // netflow_api.php is already included in bootstrap.php
 
 $user = require_login();

@@ -2,6 +2,7 @@
 // Increase execution time for multi-manager data retrieval
 set_time_limit(120);
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 // nsx_api.php is already included in bootstrap.php
 
 $user = require_login('atendente');

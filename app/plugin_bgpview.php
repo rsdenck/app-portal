@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 $user = require_login();
 
@@ -15,9 +16,14 @@ if (!$plugin || !$plugin['is_active']) {
     exit;
 }
 
+$isEmbed = isset($_GET['embed']) && $_GET['embed'] == '1';
 $myAsn = $_GET['temp_asn'] ?? ($plugin['config']['my_asn'] ?? '');
 
-render_header('Network · Gestão de ASN & IX', $user);
+if (!$isEmbed) {
+    render_header('Network · Gestão de ASN & IX', $user);
+} else {
+    echo '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><link rel="stylesheet" href="/assets/style.css"></head><body class="embed-mode" style="background:transparent; padding:0; color:var(--text);">';
+}
 ?>
 <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <style>
@@ -29,14 +35,15 @@ render_header('Network · Gestão de ASN & IX', $user);
         border-radius: 8px;
         margin-top: 20px;
     }
+    .table { color: var(--text); }
+    .table th { color: var(--text); border-bottom: 1px solid var(--border); }
+    .table td { color: var(--text); border-bottom: 1px solid var(--border); }
+    .muted { color: var(--muted) !important; }
 </style>
 
 <div class="card" style="margin-bottom:18px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="display:flex;align-items:center;gap:12px">
-            <a href="/app/atendente_gestao.php" class="btn" style="padding:8px">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-            </a>
             <div class="plugin-icon-wrapper" style="background:rgba(39, 196, 168, 0.1);color:var(--primary);width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
             </div>
@@ -48,9 +55,6 @@ render_header('Network · Gestão de ASN & IX', $user);
         <div style="display:flex;gap:10px">
             <?php if ($myAsn): ?>
                 <div class="badge" style="background:rgba(39, 196, 168, 0.2);color:var(--primary);border:1px solid var(--primary)">ASN Visualizado: AS<?= h($myAsn) ?></div>
-                <?php if (isset($_GET['temp_asn'])): ?>
-                    <a href="plugin_bgpview.php" class="btn btn-sm btn-outline">Voltar para Meu ASN</a>
-                <?php endif; ?>
             <?php endif; ?>
             <a href="/app/atendente_plugin_config.php?name=bgpview" class="btn btn-sm">Configurar</a>
         </div>
@@ -66,6 +70,7 @@ render_header('Network · Gestão de ASN & IX', $user);
         <button class="tab-btn" onclick="switchTab(event, 'map')">Mapa de Conexões</button>
         <button class="tab-btn" onclick="switchTab(event, 'search')">Busca Global</button>
         <button class="tab-btn" onclick="switchTab(event, 'tools')">Ferramentas</button>
+        <button class="tab-btn" onclick="switchTab(event, 'peeringdb')">PeeringDB</button>
     </div>
 </div>
 
@@ -280,6 +285,22 @@ render_header('Network · Gestão de ASN & IX', $user);
     </div>
 </div>
 
+<!-- PEERINGDB TAB -->
+<div id="peeringdb" class="tab-content">
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+            <div>
+                <div style="font-weight:600">Dados do PeeringDB</div>
+                <div class="muted" style="font-size:12px">Informações de peering e presença em IXPs via PeeringDB API</div>
+            </div>
+            <a href="https://www.peeringdb.com/asn/<?= h($myAsn) ?>" target="_blank" class="btn btn-sm">Ver no PeeringDB.com</a>
+        </div>
+        <div id="peeringdbContent" style="color:var(--text)">
+            <div style="text-align:center;padding:20px">Carregando dados do PeeringDB...</div>
+        </div>
+    </div>
+</div>
+
 <script>
 const myAsn = '<?= $myAsn ?>';
 
@@ -302,39 +323,103 @@ function switchTab(evt, tabName) {
         if (tabName === 'downstreams') loadDownstreams();
         if (tabName === 'map') loadPeerGraph();
         if (tabName === 'ix') loadIX();
+        if (tabName === 'peeringdb') loadPeeringDB();
+    }
+}
+
+async function loadPeeringDB() {
+    const container = document.getElementById('peeringdbContent');
+    if (!myAsn) return;
+
+    try {
+        const response = await fetch(`https://www.peeringdb.com/api/net?asn=${myAsn}`);
+        const data = await response.json();
+        
+        if (data.data && data.data.length > 0) {
+            const net = data.data[0];
+            let html = `
+                <div class="row" style="margin-top:20px">
+                    <div class="col-md-6">
+                        <div style="margin-bottom:10px"><strong>Nome:</strong> ${net.name}</div>
+                        <div style="margin-bottom:10px"><strong>Aka:</strong> ${net.aka || '-'}</div>
+                        <div style="margin-bottom:10px"><strong>Website:</strong> <a href="${net.website}" target="_blank">${net.website}</a></div>
+                        <div style="margin-bottom:10px"><strong>Política de Peering:</strong> ${net.policy_general}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div style="margin-bottom:10px"><strong>Tráfego Unicast:</strong> ${net.traffic_range || '-'}</div>
+                        <div style="margin-bottom:10px"><strong>Nível de Tráfego:</strong> ${net.traffic_level || '-'}</div>
+                        <div style="margin-bottom:10px"><strong>Ratio:</strong> ${net.traffic_ratio || '-'}</div>
+                        <div style="margin-bottom:10px"><strong>Scopes:</strong> ${net.policy_locations || '-'}</div>
+                    </div>
+                </div>
+                <div style="margin-top:20px">
+                    <div style="font-weight:600;margin-bottom:10px">Links Externos Úteis:</div>
+                    <div style="display:flex;gap:10px">
+                        <a href="https://bgp.he.net/AS${myAsn}" target="_blank" class="btn btn-sm">Hurricane Electric (HE)</a>
+                        <a href="https://radar.cloudflare.com/as${myAsn}" target="_blank" class="btn btn-sm">Cloudflare Radar</a>
+                        <a href="https://bgpview.io/asn/${myAsn}" target="_blank" class="btn btn-sm">BGPView.io</a>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        } else {
+            container.innerHTML = '<div style="text-align:center;padding:20px">Nenhum dado encontrado no PeeringDB para este ASN.</div>';
+        }
+    } catch (e) {
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger)">Erro ao carregar dados do PeeringDB.</div>';
     }
 }
 
 async function loadUpstreams() {
     const list = document.getElementById('upstreamsList');
-    list.innerHTML = '<tr><td colspan="3" style="text-align:center">Carregando...</td></tr>';
+    list.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text)">Carregando...</td></tr>';
     try {
         const response = await fetch(`https://api.bgpview.io/asn/${myAsn}/upstreams`);
         const data = await response.json();
         if (data.status === 'ok') {
             let html = '';
+            // IPv4 Upstreams
             data.data.ipv4_upstreams.forEach(p => {
                 html += `<tr><td>AS${p.asn}</td><td>${p.name}</td><td>${p.country_code}</td></tr>`;
             });
-            list.innerHTML = html || '<tr><td colspan="3">Nenhum upstream encontrado.</td></tr>';
+            // IPv6 Upstreams
+            data.data.ipv6_upstreams.forEach(p => {
+                html += `<tr><td>AS${p.asn}</td><td>${p.name}</td><td>${p.country_code} <span class="badge" style="background:rgba(39,196,168,0.1);color:var(--primary);font-size:9px">IPv6</span></td></tr>`;
+            });
+            list.innerHTML = html || '<tr><td colspan="3" style="color:var(--text)">Nenhum upstream encontrado.</td></tr>';
+        } else {
+            list.innerHTML = `<tr><td colspan="3" style="color:var(--danger)">Erro API: ${data.status_message || 'Status não OK'}</td></tr>`;
         }
-    } catch (e) { list.innerHTML = '<tr><td colspan="3">Erro ao carregar.</td></tr>'; }
+    } catch (e) { 
+        console.error(e);
+        list.innerHTML = '<tr><td colspan="3" style="color:var(--danger)">Erro de conexão ao carregar upstreams.</td></tr>'; 
+    }
 }
 
 async function loadDownstreams() {
     const list = document.getElementById('downstreamsList');
-    list.innerHTML = '<tr><td colspan="3" style="text-align:center">Carregando...</td></tr>';
+    list.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text)">Carregando...</td></tr>';
     try {
         const response = await fetch(`https://api.bgpview.io/asn/${myAsn}/downstreams`);
         const data = await response.json();
         if (data.status === 'ok') {
             let html = '';
+            // IPv4 Downstreams
             data.data.ipv4_downstreams.forEach(p => {
                 html += `<tr><td>AS${p.asn}</td><td>${p.name}</td><td>${p.country_code}</td></tr>`;
             });
-            list.innerHTML = html || '<tr><td colspan="3">Nenhum downstream encontrado.</td></tr>';
+            // IPv6 Downstreams
+            data.data.ipv6_downstreams.forEach(p => {
+                html += `<tr><td>AS${p.asn}</td><td>${p.name}</td><td>${p.country_code} <span class="badge" style="background:rgba(39,196,168,0.1);color:var(--primary);font-size:9px">IPv6</span></td></tr>`;
+            });
+            list.innerHTML = html || '<tr><td colspan="3" style="color:var(--text)">Nenhum downstream encontrado.</td></tr>';
+        } else {
+            list.innerHTML = `<tr><td colspan="3" style="color:var(--danger)">Erro API: ${data.status_message || 'Status não OK'}</td></tr>`;
         }
-    } catch (e) { list.innerHTML = '<tr><td colspan="3">Erro ao carregar.</td></tr>'; }
+    } catch (e) { 
+        console.error(e);
+        list.innerHTML = '<tr><td colspan="3" style="color:var(--danger)">Erro de conexão ao carregar downstreams.</td></tr>'; 
+    }
 }
 
 async function globalSearch(event) {
@@ -471,67 +556,92 @@ async function loadPeerGraph() {
 
 async function loadDashboard() {
     if (!myAsn) return;
+    const detailsDiv = document.getElementById('asnDetailsLoading');
     try {
         const response = await fetch(`https://api.bgpview.io/asn/${myAsn}`);
         const data = await response.json();
         if (data.status === 'ok') {
             const info = data.data;
-            document.getElementById('asnDetailsLoading').innerHTML = `
+            detailsDiv.innerHTML = `
                 <div style="margin-bottom:8px"><strong>Nome:</strong> ${info.name}</div>
                 <div style="margin-bottom:8px"><strong>Entidade:</strong> ${info.description_short}</div>
                 <div style="margin-bottom:8px"><strong>País:</strong> ${info.country_code}</div>
                 <div style="margin-bottom:8px"><strong>Website:</strong> <a href="${info.website}" target="_blank">${info.website}</a></div>
                 <div style="font-size:11px;color:var(--muted);margin-top:15px">Registrado via ${info.rir_name}</div>
             `;
+        } else {
+            detailsDiv.innerHTML = `<div style="color:var(--danger)">Erro API: ${data.status_message || 'Status não OK'}</div>`;
         }
         
         // Load counts from prefixes and peers
-        const prefRes = await fetch(`https://api.bgpview.io/asn/${myAsn}/prefixes`);
-        const prefData = await prefRes.json();
-        if (prefData.status === 'ok') {
-            document.getElementById('countIPv4').textContent = prefData.data.ipv4_prefixes.length;
-            document.getElementById('countIPv6').textContent = prefData.data.ipv6_prefixes.length;
-        }
+        try {
+            const prefRes = await fetch(`https://api.bgpview.io/asn/${myAsn}/prefixes`);
+            const prefData = await prefRes.json();
+            if (prefData.status === 'ok') {
+                document.getElementById('countIPv4').textContent = prefData.data.ipv4_prefixes.length;
+                document.getElementById('countIPv6').textContent = prefData.data.ipv6_prefixes.length;
+            }
+        } catch (e) { console.error("Error loading prefixes counts", e); }
 
-        const peerRes = await fetch(`https://api.bgpview.io/asn/${myAsn}/peers`);
-        const peerData = await peerRes.json();
-        if (peerData.status === 'ok') {
-            document.getElementById('countPeers').textContent = peerData.data.ipv4_peers.length + peerData.data.ipv6_peers.length;
-        }
+        try {
+            const peerRes = await fetch(`https://api.bgpview.io/asn/${myAsn}/peers`);
+            const peerData = await peerRes.json();
+            if (peerData.status === 'ok') {
+                document.getElementById('countPeers').textContent = peerData.data.ipv4_peers.length + peerData.data.ipv6_peers.length;
+            }
+        } catch (e) { console.error("Error loading peers counts", e); }
+
     } catch (e) {
         console.error(e);
+        detailsDiv.innerHTML = `<div style="color:var(--danger)">Erro de conexão: ${e.message}</div>`;
     }
 }
 
 async function loadPrefixes() {
     const list = document.getElementById('prefixesList');
-    list.innerHTML = '<tr><td colspan="4" style="text-align:center">Carregando...</td></tr>';
+    list.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text)">Carregando...</td></tr>';
     try {
         const response = await fetch(`https://api.bgpview.io/asn/${myAsn}/prefixes`);
         const data = await response.json();
         if (data.status === 'ok') {
             let html = '';
+            // IPv4 Prefixes
             data.data.ipv4_prefixes.forEach(p => {
                 html += `<tr>
                     <td><strong>${p.prefix}</strong></td>
                     <td>${p.name}</td>
                     <td><small>${p.description}</small></td>
-                    <td>${p.roa_status}</td>
+                    <td><span class="badge" style="background:rgba(39,196,168,0.1);color:var(--primary)">${p.roa_status}</span></td>
                 </tr>`;
             });
-            list.innerHTML = html || '<tr><td colspan="4">Nenhum prefixo encontrado.</td></tr>';
+            // IPv6 Prefixes
+            data.data.ipv6_prefixes.forEach(p => {
+                html += `<tr>
+                    <td><strong>${p.prefix}</strong> <span class="badge" style="background:rgba(39,196,168,0.1);color:var(--primary);font-size:9px">IPv6</span></td>
+                    <td>${p.name}</td>
+                    <td><small>${p.description}</small></td>
+                    <td><span class="badge" style="background:rgba(39,196,168,0.1);color:var(--primary)">${p.roa_status}</span></td>
+                </tr>`;
+            });
+            list.innerHTML = html || '<tr><td colspan="4" style="color:var(--text)">Nenhum prefixo encontrado.</td></tr>';
+        } else {
+            list.innerHTML = `<tr><td colspan="4" style="color:var(--danger)">Erro API: ${data.status_message || 'Status não OK'}</td></tr>`;
         }
-    } catch (e) { list.innerHTML = '<tr><td colspan="4">Erro ao carregar.</td></tr>'; }
+    } catch (e) { 
+        console.error(e);
+        list.innerHTML = '<tr><td colspan="4" style="color:var(--danger)">Erro de conexão ao carregar prefixos.</td></tr>'; 
+    }
 }
 
 async function loadPeers() {
     const list = document.getElementById('peersList');
-    list.innerHTML = '<tr><td colspan="4" style="text-align:center">Carregando...</td></tr>';
+    list.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text)">Carregando...</td></tr>';
     try {
         const response = await fetch(`https://api.bgpview.io/asn/${myAsn}/peers`);
         const data = await response.json();
         if (data.status === 'ok') {
             let html = '';
+            // IPv4 Peers
             data.data.ipv4_peers.forEach(p => {
                 html += `<tr>
                     <td>AS${p.asn}</td>
@@ -540,14 +650,28 @@ async function loadPeers() {
                     <td>${p.country_code}</td>
                 </tr>`;
             });
-            list.innerHTML = html || '<tr><td colspan="4">Nenhum peer encontrado.</td></tr>';
+            // IPv6 Peers
+            data.data.ipv6_peers.forEach(p => {
+                html += `<tr>
+                    <td>AS${p.asn}</td>
+                    <td>${p.name}</td>
+                    <td>IPv6</td>
+                    <td>${p.country_code}</td>
+                </tr>`;
+            });
+            list.innerHTML = html || '<tr><td colspan="4" style="color:var(--text)">Nenhum peer encontrado.</td></tr>';
+        } else {
+            list.innerHTML = `<tr><td colspan="4" style="color:var(--danger)">Erro API: ${data.status_message || 'Status não OK'}</td></tr>`;
         }
-    } catch (e) { list.innerHTML = '<tr><td colspan="4">Erro ao carregar.</td></tr>'; }
+    } catch (e) { 
+        console.error(e);
+        list.innerHTML = '<tr><td colspan="4" style="color:var(--danger)">Erro de conexão ao carregar peers.</td></tr>'; 
+    }
 }
 
 async function loadIX() {
     const list = document.getElementById('ixList');
-    list.innerHTML = '<tr><td colspan="4" style="text-align:center">Carregando...</td></tr>';
+    list.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text)">Carregando...</td></tr>';
     try {
         const response = await fetch(`https://api.bgpview.io/asn/${myAsn}/ixs`);
         const data = await response.json();
@@ -561,9 +685,14 @@ async function loadIX() {
                     <td>${ix.ipv6_address || '-'}</td>
                 </tr>`;
             });
-            list.innerHTML = html || '<tr><td colspan="4">Nenhum IXP encontrado.</td></tr>';
+            list.innerHTML = html || '<tr><td colspan="4" style="color:var(--text)">Nenhum IXP encontrado.</td></tr>';
+        } else {
+            list.innerHTML = `<tr><td colspan="4" style="color:var(--danger)">Erro API: ${data.status_message || 'Status não OK'}</td></tr>`;
         }
-    } catch (e) { list.innerHTML = '<tr><td colspan="4">Erro ao carregar.</td></tr>'; }
+    } catch (e) { 
+        console.error(e);
+        list.innerHTML = '<tr><td colspan="4" style="color:var(--danger)">Erro de conexão ao carregar IXPs.</td></tr>'; 
+    }
 }
 
 async function quickSearch(event) {
@@ -621,7 +750,12 @@ if (myAsn) loadDashboard();
 </style>
 
 <?php
-render_footer();
+if (!$isEmbed) {
+    render_footer();
+} else {
+    echo '</body></html>';
+}
+?>
 
 
 

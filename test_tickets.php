@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
-
-$pdo = new PDO('mysql:host=localhost;dbname=portal', 'root', '');
+/** @var PDO $pdo */
+// Use $pdo from bootstrap.php
 
 // Test attack ticket
 $attack = [

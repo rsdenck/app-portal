@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
+/** @var PDO $pdo */
 try {
     $cols = $pdo->query("SHOW COLUMNS FROM assets")->fetchAll(PDO::FETCH_COLUMN);
     

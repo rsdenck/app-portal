@@ -1,5 +1,6 @@
 <?php
-require_once __DIR__ . '/includes/bootstrap.php';
+require_once __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 // $pdo is already available from bootstrap.php
 
 $stmt = $pdo->prepare("SELECT data FROM plugin_bgp_data WHERE type = 'threat_intel'");

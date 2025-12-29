@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 echo "Starting Threat Intelligence Collector...\n";
 
@@ -191,29 +192,6 @@ if ($abuseToken && (!empty($threatData['active_ips']) || !empty($threatData['vul
             // Remove from other categories if malicious
             unset($threatData['active_ips'][$ip]);
             unset($threatData['vulnerable_ips'][$ip]);
-        }
-    }
-}
-
-// 4. Fallback: If no IPs found, add at least one IP from each configured block as "Active"
-if ($threatData['stats']['active'] == 0 && $threatData['stats']['vulnerable'] == 0 && $threatData['stats']['malicious'] == 0) {
-    echo "No IPs found via APIs. Using fallback discovery...\n";
-    foreach ($ipBlocks as $block) {
-        // Just take the .1 of each block as a representative point
-        $baseIp = explode('/', $block)[0];
-        $ipParts = explode('.', $baseIp);
-        $ipParts[3] = '1';
-        $ip = implode('.', $ipParts);
-        
-        $geo = get_geo($ip, $pdo, $ipinfoToken);
-        if ($geo && isset($geo['loc'])) {
-            $threatData['active_ips'][$ip] = [
-                'ip' => $ip,
-                'org' => 'Configured Block Fallback',
-                'geo' => $geo,
-                'last_update' => date('Y-m-d H:i:s')
-            ];
-            $threatData['stats']['active']++;
         }
     }
 }

@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 header('Content-Type: application/json');
 
 if (!current_user()) {

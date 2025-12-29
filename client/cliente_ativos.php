@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 require_login();
 
 if (current_user()['role'] !== 'cliente') {

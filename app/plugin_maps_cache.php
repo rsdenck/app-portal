@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 $user = require_login();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

@@ -107,6 +107,19 @@ function auth_login(PDO $pdo, string $email, string $password, ?string $required
     }
 
     $user = auth_build_session_user($row);
+    
+    if ($user['role'] === 'atendente') {
+        $stmt = $pdo->prepare('SELECT category_id, category_id_2 FROM attendant_profiles WHERE user_id = ?');
+        $stmt->execute([$user['id']]);
+        $profile = $stmt->fetch();
+        $categories = [];
+        if ($profile) {
+            if ($profile['category_id']) $categories[] = (int)$profile['category_id'];
+            if ($profile['category_id_2']) $categories[] = (int)$profile['category_id_2'];
+        }
+        $user['categories'] = $categories;
+    }
+
     $_SESSION['user'] = $user;
     audit_log($pdo, $user, 'login', []);
     return $user;

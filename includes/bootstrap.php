@@ -35,6 +35,8 @@ require_once __DIR__ . '/vcenter_api.php';
 require_once __DIR__ . '/elasticsearch.php';
 require_once __DIR__ . '/plugins.php';
 require_once __DIR__ . '/projects.php';
+require_once __DIR__ . '/billing.php';
+require_once __DIR__ . '/dflow.php';
 
 $pdo = db($config);
 ticket_ensure_schema($pdo);
@@ -42,6 +44,7 @@ user_ensure_schema($pdo);
 ticket_unread_ensure_schema($pdo);
 plugins_ensure_table($pdo);
 projects_ensure_schema($pdo);
+dflow_ensure_tables($pdo);
 
 function upload_file(array $file, string $destinationDir): ?array
 {

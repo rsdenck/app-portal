@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 $stmt = $pdo->prepare("SELECT updated_at, LENGTH(data) as size FROM plugin_bgp_data WHERE type = 'threat_intel'");
 $stmt->execute();

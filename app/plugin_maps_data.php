@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 $user = require_login();
 
 header('Content-Type: application/json');
@@ -355,41 +356,6 @@ if (!empty($threatData['attacks'])) {
                     ]
                 ]
             ];
-        }
-    }
-} else {
-    // Fallback: Correlação randômica básica se não houver ataques pré-calculados
-    if (!empty($targetIps)) {
-        $allTargets = array_keys($targetIps);
-        foreach ($threatData['malicious_ips'] as $ip => $info) {
-            if (!isset($info['geo']['loc'])) continue;
-            $randomTargetIp = $allTargets[array_rand($allTargets)];
-            if (isset($targetIps[$randomTargetIp]['geo']['loc'])) {
-                $features[] = [
-                    'type' => 'Feature',
-                    'properties' => [
-                        'type' => 'attack',
-                        'severity' => ($info['abuse_score'] ?? 0) > 80 ? 'high' : 'medium',
-                        'attacker_ip' => $ip,
-                        'target_ip' => $randomTargetIp,
-                        'is_real_flow' => $info['is_real_flow'] ?? false,
-                        'is_tor' => $info['is_tor'] ?? false,
-                        'is_sec_logs' => $info['is_sec_logs'] ?? false,
-                        'is_shodan' => isset($info['shodan']),
-                        'is_abuse' => ($info['abuse_score'] ?? 0) > 0,
-                        'is_corgea' => isset($info['corgea']),
-                        'abuse_score' => $info['abuse_score'] ?? 0,
-                        'cves' => array_keys($info['corgea'] ?? [])
-                    ],
-                    'geometry' => [
-                        'type' => 'LineString',
-                        'coordinates' => [
-                            $toCoords($info['geo']['loc']),
-                            $toCoords($targetIps[$randomTargetIp]['geo']['loc'])
-                        ]
-                    ]
-                ];
-            }
         }
     }
 }

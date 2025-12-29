@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/bootstrap.php';
+/** @var PDO $pdo */
 require_once __DIR__ . '/../../includes/security_logs_api.php';
 require_once __DIR__ . '/../../includes/snmp_api.php';
 require_once __DIR__ . '/../../includes/wazuh_api.php';

@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 $user = require_login('atendente');
 $success = '';
@@ -120,13 +121,7 @@ render_header('Atendente · Definições', $user);
 ?>
 
 <div class="card" style="margin-bottom:18px">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-        <div>
-            <div style="font-weight:700; font-size:1.2rem">Definições do Sistema</div>
-            <div class="muted">Gerencie as configurações avançadas de todos os módulos.</div>
-        </div>
-        <a href="/app/atendente_config.php" class="btn">Voltar</a>
-    </div>
+    <div style="font-weight:700; font-size:1.2rem; margin-bottom:12px">Definições do Sistema</div>
 
     <!-- Abas de Navegação -->
     <div class="tabs" style="display:flex; gap:10px; border-bottom:1px solid var(--border-color); margin-bottom:25px; padding-bottom:10px">
@@ -155,8 +150,6 @@ render_header('Atendente · Definições', $user);
             </div>
             <?php if ($action === 'list'): ?>
                 <a href="?type=tickets&action=create" class="btn primary small">Nova Categoria</a>
-            <?php else: ?>
-                <a href="?type=tickets" class="btn small">Voltar para Lista</a>
             <?php endif; ?>
         </div>
 
@@ -246,8 +239,6 @@ render_header('Atendente · Definições', $user);
                         Nova Categoria Pai
                     </a>
                 </div>
-            <?php else: ?>
-                <a href="?type=docs" class="btn small">Voltar para Lista</a>
             <?php endif; ?>
         </div>
 

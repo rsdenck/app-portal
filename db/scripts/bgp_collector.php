@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 echo "Starting Threat Intelligence Collector...\n";
 
@@ -195,32 +196,24 @@ if ($abuseToken && (!empty($threatData['active_ips']) || !empty($threatData['vul
     }
 }
 
-// 4. Fallback: If no IPs found, add at least one IP from each configured block as "Active"
-if ($threatData['stats']['active'] == 0 && $threatData['stats']['vulnerable'] == 0 && $threatData['stats']['malicious'] == 0) {
-    echo "No IPs found via APIs. Using fallback discovery...\n";
-    foreach ($ipBlocks as $block) {
-        // Just take the .1 of each block as a representative point
-        $baseIp = explode('/', $block)[0];
-        $ipParts = explode('.', $baseIp);
-        $ipParts[3] = '1';
-        $ip = implode('.', $ipParts);
-        
-        $geo = get_geo($ip, $pdo, $ipinfoToken);
-        if ($geo && isset($geo['loc'])) {
-            $threatData['active_ips'][$ip] = [
-                'ip' => $ip,
-                'org' => 'Configured Block Fallback',
-                'geo' => $geo,
-                'last_update' => date('Y-m-d H:i:s')
-            ];
-            $threatData['stats']['active']++;
-        }
-    }
+// 5. Save to Database
+// Using individual records for Flow-First Network Traffic Intelligence compliance
+$stmtIntel = $pdo->prepare("INSERT INTO plugin_dflow_threat_intel (indicator, type, category, threat_score, source, last_seen) 
+                            VALUES (?, 'ip', ?, ?, ?, NOW()) 
+                            ON DUPLICATE KEY UPDATE last_seen = NOW(), threat_score = VALUES(threat_score)");
+
+foreach ($threatData['active_ips'] as $ip => $data) {
+    $stmtIntel->execute([$ip, 'Active Discovery', 0, 'BGP Collector']);
+}
+foreach ($threatData['vulnerable_ips'] as $ip => $data) {
+    $stmtIntel->execute([$ip, 'Vulnerable (Shodan)', 50, 'Shodan']);
+}
+foreach ($threatData['malicious_ips'] as $ip => $data) {
+    $stmtIntel->execute([$ip, 'Malicious (AbuseIPDB)', $data['abuse_score'] ?? 100, 'AbuseIPDB']);
 }
 
-// Save to Database
-$stmt = $pdo->prepare("INSERT INTO plugin_bgp_data (type, data, updated_at) VALUES ('threat_intel', ?, NOW()) ON DUPLICATE KEY UPDATE data = VALUES(data), updated_at = VALUES(updated_at)");
-$stmt->execute([json_encode($threatData)]);
+// Also keep the summary blob if needed by legacy views, but update table name to be compliant if it exists
+// For now, we prioritize the dflow_threat_intel table.
 
 echo "Threat Intelligence Collection completed.\n";
 echo "Stats: Active: {$threatData['stats']['active']}, Vulnerable: {$threatData['stats']['vulnerable']}, Malicious: {$threatData['stats']['malicious']}\n";

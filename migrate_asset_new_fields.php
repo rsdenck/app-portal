@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/includes/bootstrap.php';
+/** @var PDO $pdo */
 
 try {
     $pdo->exec("ALTER TABLE assets ADD COLUMN resource_name VARCHAR(255) NULL");

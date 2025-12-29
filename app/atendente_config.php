@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../includes/bootstrap.php';
+/** @var PDO $pdo */
 
 $user = require_login('atendente');
 $successAccount = '';
@@ -20,38 +21,9 @@ $zbxSettings = zbx_settings_get($pdo);
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     csrf_validate();
-    $form = (string)($_POST['form'] ?? 'account');
+    $form = (string)($_POST['form'] ?? 'zabbix');
 
-    if ($form === 'account') {
-        $name = trim((string)($_POST['name'] ?? ''));
-        $department = trim((string)($_POST['department'] ?? ''));
-        $categoryId = safe_int($_POST['category_id'] ?? null);
-        $newPassword = (string)($_POST['new_password'] ?? '');
-
-        if ($name === '') {
-            $errorAccount = 'Nome é obrigatório.';
-        } else {
-            user_update_name($pdo, (int)$user['id'], $name);
-            $pdo->prepare('UPDATE attendant_profiles SET department = ?, category_id = ? WHERE user_id = ?')
-                ->execute([$department, $categoryId, (int)$user['id']]);
-
-            if ($newPassword !== '') {
-                if (strlen($newPassword) < 8) {
-                    $errorAccount = 'Nova senha precisa ter no mínimo 8 caracteres.';
-                } else {
-                    user_update_password($pdo, (int)$user['id'], $newPassword);
-                }
-            }
-
-            if ($errorAccount === '') {
-                $_SESSION['user']['name'] = $name;
-                $successAccount = 'Configurações salvas.';
-                $stmt = $pdo->prepare('SELECT department, category_id FROM attendant_profiles WHERE user_id = ?');
-                $stmt->execute([(int)$user['id']]);
-                $profile = $stmt->fetch() ?: ['department' => '', 'category_id' => null];
-            }
-        }
-    } elseif ($form === 'zabbix') {
+    if ($form === 'zabbix') {
         $url = trim((string)($_POST['zabbix_url'] ?? ''));
         $username = trim((string)($_POST['zabbix_username'] ?? ''));
         $password = (string)($_POST['zabbix_password'] ?? '');
@@ -70,12 +42,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 render_header('Atendente · Configurações', current_user());
 ?>
 <div class="card" style="margin-bottom:18px">
-  <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
-    <a href="/app/atendente_gestao.php" class="btn" style="padding:8px">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-    </a>
-    <div style="font-weight:700;font-size:18px">Configurações</div>
-  </div>
+  <div style="font-weight:700;font-size:18px;margin-bottom:12px">Configurações</div>
   <div class="muted" style="margin-bottom:12px">Gerencie as principais configurações do painel do atendente.</div>
   <div class="config-grid">
     <a href="/app/atendente_plugins.php" class="config-tile">
@@ -85,7 +52,7 @@ render_header('Atendente · Configurações', current_user());
       </div>
       <div class="config-tile-tag">Integrações</div>
     </a>
-    <a href="javascript:void(0)" class="config-tile" onclick="document.getElementById('config-account').scrollIntoView({behavior:'smooth'});">
+    <a href="/app/atendente_conta.php" class="config-tile">
       <div class="config-tile-main">
         <div class="config-tile-title">Conta</div>
         <div class="config-tile-desc">Nome, departamento e senha do atendente.</div>
@@ -101,53 +68,6 @@ render_header('Atendente · Configurações', current_user());
     </a>
   </div>
 </div>
-<div class="card" id="config-account">
-  <div style="font-weight:700;margin-bottom:4px">Conta do atendente</div>
-  <div class="muted" style="margin-bottom:10px">Configure os dados da sua conta no painel.</div>
-  <?php if ($successAccount): ?><div class="success"><?= h($successAccount) ?></div><?php endif; ?>
-  <?php if ($errorAccount): ?><div class="error"><?= h($errorAccount) ?></div><?php endif; ?>
-  <form method="post">
-    <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
-    <input type="hidden" name="form" value="account">
-    <div class="row">
-      <div class="col">
-        <label>Nome</label>
-        <input name="name" value="<?= h((string)($user['name'] ?? '')) ?>" required>
-      </div>
-      <div class="col">
-        <label>Email</label>
-        <input value="<?= h((string)($user['email'] ?? '')) ?>" disabled>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col">
-        <label>Departamento</label>
-        <input name="department" value="<?= h((string)($profile['department'] ?? '')) ?>">
-      </div>
-      <div class="col">
-        <label>Categoria de atendimento</label>
-        <select name="category_id">
-          <option value="">Selecione...</option>
-          <?php foreach ($categories as $c): ?>
-            <option value="<?= (int)$c['id'] ?>" <?= ((int)($profile['category_id'] ?? 0) === (int)$c['id']) ? 'selected' : '' ?>>
-              <?= h((string)$c['name']) ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col">
-        <label>Nova senha</label>
-        <input name="new_password" type="password" autocomplete="new-password" placeholder="Deixe em branco para não alterar">
-      </div>
-    </div>
-    <div style="margin-top:14px">
-      <button class="btn primary" type="submit">Salvar</button>
-    </div>
-  </form>
-</div>
-
 <?php
 render_footer();
 

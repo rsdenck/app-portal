@@ -121,4 +121,16 @@ function format_percent(mixed $value): string
     return number_format((float)$value, 1) . '%';
 }
 
+function format_bps(mixed $bps): string
+{
+    if ($bps === null || !is_numeric($bps)) {
+        return '0 bps';
+    }
+    $bps = (float)$bps;
+    if ($bps >= 1000000000) return number_format($bps / 1000000000, 1) . ' Gbps';
+    if ($bps >= 1000000) return number_format($bps / 1000000, 1) . ' Mbps';
+    if ($bps >= 1000) return number_format($bps / 1000, 1) . ' Kbps';
+    return number_format($bps, 0) . ' bps';
+}
+
 
