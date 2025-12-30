@@ -16,7 +16,7 @@ $ipinfoPlugin = plugin_get_by_name($pdo, 'ipinfo');
 $abusePlugin = plugin_get_by_name($pdo, 'abuseipdb');
 $shodanPlugin = plugin_get_by_name($pdo, 'shodan');
 
-$hosts = $pdo->query("SELECT h.*, r.lat, r.lon, r.city, r.country 
+$hosts = $pdo->query("SELECT h.*, r.lat, r.lon, r.city, r.country, r.classification, r.volumetry_per_min 
                     FROM plugin_dflow_hosts h 
                     LEFT JOIN plugin_dflow_recon r ON h.ip_address = r.ip")->fetchAll(PDO::FETCH_ASSOC);
 $results = [];

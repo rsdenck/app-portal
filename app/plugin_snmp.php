@@ -63,6 +63,7 @@ if (!$isEmbed) {
                     <th>VLAN</th>
                     <th>Speed</th>
                     <th>Status</th>
+                    <th>Last Update</th>
                 </tr>
             </thead>
             <tbody>
@@ -75,6 +76,9 @@ if (!$isEmbed) {
                     <td><span class="badge"><?= $if['vlan'] ?></span></td>
                     <td><?= format_bytes($if['speed']) ?>bps</td>
                     <td><span class="status-dot active"></span> UP</td>
+                    <td style="font-size:11px; color:var(--text)" class="last-update" data-time="<?= strtotime($if['updated_at']) ?>">
+                        <?= date('H:i:s', strtotime($if['updated_at'])) ?>
+                    </td>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -84,6 +88,28 @@ if (!$isEmbed) {
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Relative time updater
+    function updateRelativeTimes() {
+        const now = Math.floor(Date.now() / 1000);
+        document.querySelectorAll('.last-update').forEach(el => {
+            const time = parseInt(el.dataset.time);
+            const diff = now - time;
+            
+            if (diff < 5) {
+                el.innerHTML = '<span style="color:var(--primary); font-weight:bold;">LIVE</span>';
+            } else if (diff < 60) {
+                el.innerHTML = diff + 's ago';
+            } else {
+                const mins = Math.floor(diff / 60);
+                el.innerHTML = mins + 'm ago';
+            }
+        });
+    }
+    setInterval(updateRelativeTimes, 1000);
+    updateRelativeTimes();
+});
+
 function runDiscovery() {
     const btn = event.target;
     btn.disabled = true;

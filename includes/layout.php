@@ -331,10 +331,10 @@ function render_header(string $title, ?array $user = null, bool $showLayout = tr
                 $activePlugins = plugins_get_active($pdo);
                 $groupedMenus = plugin_get_menus($pdo, $sessionUser, $activePlugins);
                 foreach ($groupedMenus as $categoryName => $cat):
-                  if ($categoryName === 'Monitoramento') continue;
+                  if ($categoryName === 'Monitoramento' || $categoryName === 'Inteligência' || $categoryName === 'Segurança') continue;
                   
                   // Verificar se a categoria está ativa
-                  $isCatActive = ($_GET['category'] ?? '') === $categoryName;
+                  $isCatActive = ($_GET['category'] ?? '') === $categoryName || str_contains($script, 'plugin_dflow_maps.php');
                   if (!$isCatActive) {
                     foreach ($cat['plugins'] as $p) {
                       if (str_starts_with($script, str_replace('.php', '', $p['url']))) {

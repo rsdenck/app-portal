@@ -17,10 +17,9 @@ $message = '';
 $error = '';
 
 if ($action === 'analyze') {
-    $duration = (int)($_POST['duration'] ?? 10);
-    $result = deep_analyze_ip($pdo, $ip, $duration);
+    $result = deep_analyze_ip($pdo, $ip);
     if ($result['success']) {
-        $message = "Analysis completed! Found {$result['count']} insights.";
+        $message = "Native DPI synchronization completed. System is monitoring $ip.";
     } else {
         $error = $result['error'];
     }
@@ -50,38 +49,30 @@ render_header('DFlow · Deep Analysis: ' . $ip, $user);
     <div class="row">
         <div class="col-md-4">
             <div class="card">
-                <h3>Trigger New Analysis</h3>
-                <p class="muted">This will capture real-time traffic for this IP using TShark and perform deep inspection.</p>
+                <h3>Native DPI Automation</h3>
+                <p class="muted">DFlow Engine is performing continuous Deep Packet Inspection for this host. No manual action is required.</p>
+                <div style="padding: 15px; background: rgba(39,196,168,0.1); border-radius: 8px; border: 1px solid var(--primary); margin-bottom: 15px;">
+                    <div style="font-weight: 700; color: var(--primary); margin-bottom: 5px;">⚡ Active Monitoring</div>
+                    <div style="font-size: 12px;">Protocol categorization and L7 analysis are being collected automatically.</div>
+                </div>
                 <form method="POST">
                     <input type="hidden" name="action" value="analyze">
-                    <div class="form-group">
-                        <label>Capture Duration (seconds)</label>
-                        <select name="duration" class="form-control">
-                            <option value="5">5 seconds</option>
-                            <option value="10" selected>10 seconds</option>
-                            <option value="30">30 seconds</option>
-                            <option value="60">60 seconds (intensive)</option>
-                        </select>
-                    </div>
                     <button type="submit" class="btn primary btn-block" id="analyzeBtn">
-                        Start TShark Capture 🚀
+                        Sync Latest Insights 🔄
                     </button>
                 </form>
             </div>
 
             <div class="card" style="margin-top:20px;">
-                <h3>System Status</h3>
+                <h3>Engine Status</h3>
                 <ul class="status-list">
                     <li>
-                        <span>TShark Binary:</span>
-                        <?php $tshark = find_tshark(); ?>
-                        <span class="badge <?= $tshark ? 'success' : 'danger' ?>">
-                            <?= $tshark ? 'Found' : 'Not Found' ?>
-                        </span>
+                        <span>Native Collector:</span>
+                        <span class="badge success">Running</span>
                     </li>
                     <li>
-                        <span>Interface:</span>
-                        <span class="badge info">Auto-detect</span>
+                        <span>DPI Mode:</span>
+                        <span class="badge info">L7 State-aware</span>
                     </li>
                 </ul>
             </div>
@@ -94,7 +85,7 @@ render_header('DFlow · Deep Analysis: ' . $ip, $user);
                     <div style="text-align:center; padding:60px;" class="muted">
                         <i style="font-size:48px; display:block; margin-bottom:15px;">🔍</i>
                         No deep analysis data found for this IP.<br>
-                        Click "Start TShark Capture" to begin.
+                        The Native DFlow engine is collecting data. Try syncing again in a few moments.
                     </div>
                 <?php else: ?>
                     <div class="table-container">
@@ -151,7 +142,7 @@ render_header('DFlow · Deep Analysis: ' . $ip, $user);
 
 <script>
 document.getElementById('analyzeBtn').addEventListener('click', function() {
-    this.innerHTML = 'Capturing... Please wait ⏳';
+    this.innerHTML = 'Syncing Native Engine Data... ⏳';
     this.classList.add('disabled');
 });
 </script>

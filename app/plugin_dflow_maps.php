@@ -56,10 +56,6 @@ render_header('Redes · Hub Central', $user);
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             Live Hosts (Force-Directed)
         </button>
-        <button class="hub-tab" data-tab="topology">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5v14"/></svg>
-            L2 Topology
-        </button>
         <button class="hub-tab" data-tab="interfaces">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>
             Interfaces
@@ -88,6 +84,10 @@ render_header('Redes · Hub Central', $user);
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
             VLAN Analysis
         </button>
+        <button class="hub-tab" data-tab="sensors">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            Sensors Health
+        </button>
     </div>
 
     <!-- Tab Contents -->
@@ -96,20 +96,13 @@ render_header('Redes · Hub Central', $user);
         <div id="tab-maps" class="tab-pane active">
             <div class="card map-card" style="padding:0; position:relative;">
                 <div id="3d-graph" style="width:100%; height:600px; background:#000d1a;"></div>
+                <div class="proto-legend" id="proto-legend">
+                    <!-- Dynamic legend will be injected here -->
+                </div>
                 <div class="map-controls">
                     <button class="btn small" onclick="resetCamera()">Reset Camera</button>
                     <button class="btn small" id="btn-freeze" onclick="toggleFreeze()">Freeze</button>
                     <button class="btn small" onclick="toggleAutoRotate()">Auto-Rotate</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- L2 Topology Tab -->
-        <div id="tab-topology" class="tab-pane">
-            <div class="card map-card" style="padding:0; position:relative;">
-                <div id="topo-graph" style="width:100%; height:600px; background:#000810;"></div>
-                <div class="map-controls">
-                    <button class="btn small" onclick="initTopologyGraph()">Reload Topology</button>
                 </div>
             </div>
         </div>
@@ -162,9 +155,31 @@ render_header('Redes · Hub Central', $user);
                             <div class="muted" style="font-size:12px; padding:10px;">Carregando VLANs...</div>
                         </div>
                     </div>
+
+                    <!-- Hosts Inventory Section -->
+                    <div class="card" style="padding:20px; margin-top: 20px;">
+                        <h3 style="margin:0 0 15px 0;">Hosts Detectados nesta VLAN</h3>
+                        <div id="vlan-hosts-container" class="table-container">
+                            <table class="table" id="vlan-hosts-table">
+                                <thead>
+                                    <tr>
+                                        <th>IP Address</th>
+                                        <th>Hostname</th>
+                                        <th>MAC Address</th>
+                                        <th>Vendor</th>
+                                        <th>Tráfego (IN/OUT)</th>
+                                        <th>Visto por último</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="6" class="muted" style="text-align:center;">Selecione uma VLAN para ver os hosts...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
                 <div class="vlan-main">
-                    <div class="card" style="padding:0; position:relative; height:600px; background:#000d1a;">
+                    <div class="card" style="padding:0; position:relative; height:400px; background:#000d1a; margin-bottom: 20px;">
                         <div id="vlan-graph" style="width:100%; height:100%;"></div>
                         <div class="vlan-info-overlay" id="vlan-info" style="display:none;">
                             <div class="vlan-info-box">
@@ -173,11 +188,173 @@ render_header('Redes · Hub Central', $user);
                             </div>
                         </div>
                     </div>
+
+                    <!-- Interface Inventory Section -->
+                    <div class="card" style="padding:20px;">
+                        <h3 style="margin:0 0 15px 0;">Inventário de Interfaces (Físicas/Virtuais)</h3>
+                        <div id="vlan-inventory-container" class="table-container">
+                            <table class="table" id="vlan-inventory-table">
+                                <thead>
+                                    <tr>
+                                        <th>Interface</th>
+                                        <th>Descrição</th>
+                                        <th>MAC Address</th>
+                                        <th>IP Address</th>
+                                        <th>Status</th>
+                                        <th>Velocidade</th>
+                                        <th>Tráfego (IN/OUT)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="7" class="muted" style="text-align:center;">Selecione uma VLAN para ver o inventário...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sensors Health Tab -->
+        <div id="tab-sensors" class="tab-pane">
+            <div class="sensors-grid" id="sensors-container">
+                <!-- Sensor cards will be injected here -->
+                <div class="loading-overlay">
+                    <div class="spinner"></div>
+                    <p>Coletando telemetria dos sensores...</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.sensors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+    padding: 10px;
+}
+
+.sensor-card {
+    background: #1a1f26;
+    border: 1px solid #2d343f;
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.sensor-card:hover {
+    transform: translateY(-2px);
+    border-color: #3d4655;
+}
+
+.sensor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.sensor-info h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #fff;
+}
+
+.sensor-info p {
+    margin: 4px 0 0 0;
+    font-size: 12px;
+    color: #8b949e;
+}
+
+.sensor-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.sensor-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.metric-item {
+    background: #0d1117;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #21262d;
+}
+
+.metric-label {
+    display: block;
+    font-size: 11px;
+    color: #8b949e;
+    margin-bottom: 4px;
+}
+
+.metric-value {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+}
+
+.metric-progress {
+    height: 4px;
+    background: #21262d;
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.sensor-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid #2d343f;
+    font-size: 11px;
+    color: #8b949e;
+}
+
+.heartbeat-pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    box-shadow: 0 0 0 rgba(0,0,0,0.2);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(39, 196, 168, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(39, 196, 168, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(39, 196, 168, 0); }
+}
+
+.loading-overlay {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    color: #8b949e;
+}
+</style>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -242,9 +419,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function refreshTabContent(target, vlan) {
         if (target === 'maps') init3DGraph(vlan);
-        if (target === 'topology') initTopologyGraph();
         if (target === 'geomap') initGeoMap();
         if (target === 'vlan') initVlanAnalysis(vlan);
+        if (target === 'sensors') initSensorsDashboard();
         
         // Update IFrames with vlan context
         const iframeTabs = ['interfaces', 'hosts', 'bgp', 'snmp', 'flows'];
@@ -259,7 +436,147 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initial Load
     init3DGraph(currentVlan);
+
+    // Global switchTab function for iframes
+    window.switchTab = function(target, params = {}) {
+        const tab = document.querySelector(`.hub-tab[data-tab="${target}"]`);
+        if (tab) {
+            tabs.forEach(t => t.classList.remove('active'));
+            panes.forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById('tab-' + target).classList.add('active');
+            
+            // Refresh content with params
+            if (target === 'flows') {
+                const iframe = document.querySelector(`#tab-flows iframe`);
+                if (iframe) {
+                    let url = `plugin_dflow_flows.php?embed=1&vlan=${params.vlan || currentVlan}`;
+                    if (params.mac) url += `&mac=${encodeURIComponent(params.mac)}`;
+                    iframe.src = url;
+                }
+            } else {
+                refreshTabContent(target, params.vlan || currentVlan);
+            }
+        }
+    };
+
+    // Message listener for iframes
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'switchTab') {
+            window.switchTab(event.data.tab, event.data.params);
+        }
+    });
 });
+
+function formatBps(bps) {
+    if (bps === 0) return '0 bps';
+    const k = 1000;
+    const sizes = ['bps', 'Kbps', 'Mbps', 'Gbps', 'Tbps'];
+    const i = Math.floor(Math.log(bps) / Math.log(k));
+    return parseFloat((bps / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatPps(pps) {
+    if (pps === 0) return '0 pps';
+    if (pps < 1000) return pps + ' pps';
+    return (pps / 1000).toFixed(1) + 'k pps';
+}
+
+function initSensorsDashboard() {
+    const container = document.getElementById('sensors-container');
+    if (!container) return;
+
+    fetch('plugin_dflow_sensors_data.php')
+        .then(res => res.json())
+        .then(data => {
+            if (!data || data.length === 0) {
+                container.innerHTML = `
+                    <div class="loading-overlay" style="grid-column: 1 / -1; text-align:center; padding:80px 20px;">
+                        <div style="font-size:48px; margin-bottom:20px;">🐧</div>
+                        <h2 style="color:#fff; margin-bottom:10px;">Nenhum sensor DFlow detectado no sistema.</h2>
+                        <p style="color:#8b949e; max-width:500px; margin:0 auto 30px;">
+                            O DFlow Probe é um motor de captura L2-L7 de ultra-alta performance escrito em C para máxima eficiência e baixa latência.
+                        </p>
+                        <div style="display:flex; gap:15px; justify-content:center;">
+                            <a href="https://github.com/armazemcloud/dflow-probe" target="blank" class="btn primary" style="text-decoration:none; padding:10px 20px;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px; vertical-align:middle;"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                                Deploy DFlow Probe (C Source)
+                            </a>
+                            <button onclick="refreshTabContent('sensors')" class="btn" style="background:transparent; border:1px solid #2d343f; color:#fff;">
+                                🔄 Verificar Novamente
+                            </button>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            data.forEach(sensor => {
+                const card = document.createElement('div');
+                card.className = 'sensor-card';
+                
+                const statusColor = sensor.health_color || '#888';
+                const cpuUsage = Math.round(sensor.cpu_usage || 0);
+                const memUsage = Math.round(sensor.mem_usage || 0);
+                const isCVersion = sensor.version && sensor.version.includes('enterprise-c');
+                
+                card.innerHTML = `
+                    <div class="sensor-header">
+                        <div class="sensor-info">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <h3 style="margin:0;">${sensor.name}</h3>
+                                ${isCVersion ? '<span style="background:#27c4a822; color:#27c4a8; font-size:9px; padding:2px 6px; border-radius:4px; border:1px solid #27c4a844;">C-ENGINE</span>' : '<span style="background:#ffa50022; color:#ffa500; font-size:9px; padding:2px 6px; border-radius:4px; border:1px solid #ffa50044;">LEGACY</span>'}
+                            </div>
+                            <p>${sensor.ip_address} • v${sensor.version || '1.0'}</p>
+                        </div>
+                        <div class="sensor-status" style="background:${statusColor}22; color:${statusColor}; border:1px solid ${statusColor}44;">
+                            ${sensor.status}
+                        </div>
+                    </div>
+                    
+                    <div class="sensor-metrics">
+                        <div class="metric-item">
+                            <span class="metric-label">CPU LOAD</span>
+                            <span class="metric-value">${cpuUsage}%</span>
+                            <div class="metric-progress">
+                                <div class="progress-bar" style="width:${cpuUsage}%; background:${cpuUsage > 80 ? '#ff4d4d' : '#27c4a8'}"></div>
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">MEM USAGE</span>
+                            <span class="metric-value">${memUsage}%</span>
+                            <div class="metric-progress">
+                                <div class="progress-bar" style="width:${memUsage}%; background:${memUsage > 90 ? '#ff4d4d' : '#27c4a8'}"></div>
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">PACKETS / SEC</span>
+                            <span class="metric-value">${(sensor.pps || 0).toLocaleString()}</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">BANDWIDTH</span>
+                            <span class="metric-value">${(sensor.bps / 1000000).toFixed(1)} Mbps</span>
+                        </div>
+                    </div>
+
+                    <div class="sensor-footer">
+                        <div>
+                            <span class="heartbeat-pulse" style="background:${statusColor}"></span>
+                            Last Heartbeat: ${new Date(sensor.last_heartbeat).toLocaleTimeString()}
+                        </div>
+                        <div style="font-weight:bold; color:#fff;">
+                            ${sensor.active_flows || 0} Flows Active
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        })
+        .catch(err => {
+            console.error('Error fetching sensor data:', err);
+            container.innerHTML = '<div class="loading-overlay"><p style="color:#ff4d4d">Erro ao carregar telemetria dos sensores.</p></div>';
+        });
+}
 
 let Graph;
 const protoColors = {
@@ -270,6 +587,10 @@ const protoColors = {
     'SSH': '#ff00ff',
     'BitTorrent': '#ff4d4d',
     'QUIC': '#33cc33',
+    'NetFlow': '#ff9900',
+    'SNMP': '#27c4a8',
+    'BGP': '#ff3366',
+    'ICMP': '#cccccc',
     'Unknown': '#888888'
 };
 
@@ -292,6 +613,17 @@ function init3DGraph(vlan = 0) {
             
             // Se o gráfico já existe, limpa para forçar reload com novo contexto
             elem.innerHTML = '';
+            
+            // Populate Legend
+            const legend = document.getElementById('proto-legend');
+            if (legend) {
+                legend.innerHTML = '<b>Protocolos Ativos:</b>';
+                const activeProtos = [...new Set(data.links.map(l => l.l7_proto))];
+                activeProtos.forEach(p => {
+                    const color = protoColors[p] || '#888888';
+                    legend.innerHTML += `<div class="legend-item"><span class="dot" style="background:${color}"></span> ${p}</div>`;
+                });
+            }
 
             Graph = ForceGraph3D()(elem)
                 .graphData(data)
@@ -525,7 +857,48 @@ function loadVlanGraph(vlanId, vlanMeta) {
             `;
             infoContent.innerHTML = content;
             infoBox.style.display = 'block';
-        });
+
+            // Update Inventory Table
+            const inventoryBody = document.querySelector('#vlan-inventory-table tbody');
+            if (vlanMeta.interfaces && vlanMeta.interfaces.length > 0) {
+                inventoryBody.innerHTML = vlanMeta.interfaces.map(iface => `
+                    <tr>
+                        <td style="font-weight:700; color:var(--primary)">${iface.name}</td>
+                        <td style="font-size:11px;">${iface.description || '-'}</td>
+                        <td style="font-family:monospace; font-size:11px;">${iface.mac_address || '-'}</td>
+                        <td style="font-weight:600;">${iface.ip_address || '-'}</td>
+                        <td><span class="tag-status ${iface.status === 'up' ? 'success' : 'danger'}">${iface.status.toUpperCase()}</span></td>
+                        <td style="font-size:11px;">${iface.speed ? (iface.speed / 1000000).toFixed(0) + ' Mbps' : '-'}</td>
+                        <td style="font-size:11px;">
+                            <span style="color:#27c4a8">IN: ${(iface.in_bytes / 1024 / 1024).toFixed(1)} MB</span><br>
+                            <span style="color:#ffa500">OUT: ${(iface.out_bytes / 1024 / 1024).toFixed(1)} MB</span>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                 inventoryBody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;">Nenhuma interface detectada para esta VLAN.</td></tr>';
+             }
+
+             // Update Hosts Table
+             const hostsBody = document.querySelector('#vlan-hosts-table tbody');
+             if (vlanMeta.hosts && vlanMeta.hosts.length > 0) {
+                 hostsBody.innerHTML = vlanMeta.hosts.map(host => `
+                    <tr>
+                        <td style="font-weight:700; color:var(--primary)">${host.ip_address}</td>
+                        <td style="font-size:12px;">${host.hostname || '-'}</td>
+                        <td style="font-family:monospace; font-size:11px;">${host.mac_address || '-'}</td>
+                        <td style="font-size:11px;">${host.vendor || '-'}</td>
+                        <td style="font-size:11px;">
+                            <span style="color:#27c4a8">IN: ${(host.throughput_in / 1024).toFixed(1)} KB/s</span><br>
+                            <span style="color:#ffa500">OUT: ${(host.throughput_out / 1024).toFixed(1)} KB/s</span>
+                        </td>
+                        <td style="font-size:11px; color:var(--muted)">${new Date(host.last_seen).toLocaleString()}</td>
+                    </tr>
+                 `).join('');
+             } else {
+                 hostsBody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;">Nenhum host detectado nesta VLAN.</td></tr>';
+             }
+          });
 
     // Clear previous graph
     elem.innerHTML = '';
@@ -535,19 +908,34 @@ function loadVlanGraph(vlanId, vlanMeta) {
         .then(data => {
             VlanGraph = ForceGraph3D()(elem)
                 .graphData(data)
-                .nodeLabel(n => `<div class="node-tip"><b>Host: ${n.label}</b><br>IP: ${n.id}</div>`)
-                .nodeAutoColorBy('group')
-                .nodeVal('val')
-                .linkWidth(l => l.thickness)
-                .linkColor(l => protoColors[l.l7_proto] || '#888888')
+                .nodeLabel(n => {
+                    let tip = `<div class="node-tip"><b>${n.label}</b>`;
+                    if (n.group === 'host') tip += `<br>IP: ${n.id}<br>MAC: ${n.mac || '-'}<br>Vendor: ${n.vendor || '-'}`;
+                    if (n.group === 'interface') tip += `<br>Interface: ${n.label}<br>${n.description || ''}`;
+                    tip += `</div>`;
+                    return tip;
+                })
+                .nodeColor(n => n.color || '#888')
+                .nodeVal(n => n.val || 10)
+                .linkWidth(l => l.thickness || 1)
+                .linkColor(l => l.color || '#888888')
                 .linkDirectionalParticles("value")
-                .linkDirectionalParticleSpeed(d => d.value * 0.002)
-                .linkOpacity(l => l.opacity)
+                .linkDirectionalParticleSpeed(d => (d.value || 0) * 0.005)
+                .linkOpacity(l => l.opacity || 0.6)
+                .linkLabel(l => `<div class="node-tip">${l.label || ''}</div>`)
                 .onNodeClick(node => {
-                    window.open(`plugin_dflow_hosts.php?search=${node.id}&vlan=${vlanId}`, '_blank');
+                    if (node.group === 'host') {
+                        window.open(`plugin_dflow_hosts.php?search=${node.id}&vlan=${vlanId}`, '_blank');
+                    }
                 })
                 .backgroundColor('#000d1a')
                 .showNavInfo(false);
+                
+            // Focus on central VLAN node
+            const vlanNode = data.nodes.find(n => n.group === 'vlan');
+            if (vlanNode) {
+                VlanGraph.cameraPosition({ z: 600 }, vlanNode, 2000);
+            }
         });
 }
 </script>
@@ -584,6 +972,12 @@ function loadVlanGraph(vlanId, vlanMeta) {
 .hub-iframe { width: 100%; height: 700px; border: none; border-radius: 12px; background: var(--panel); }
 .map-controls { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px; z-index: 10; }
 .node-tip { background: rgba(0,0,0,0.8); padding: 5px 10px; border-radius: 4px; font-size: 12px; color: white; border: 1px solid rgba(255,255,255,0.2); }
+
+/* Legend Styles */
+.proto-legend { position: absolute; top: 20px; right: 20px; background: rgba(0,13,26,0.85); border: 1px solid #1a2a3a; padding: 12px; border-radius: 10px; z-index: 10; color: #fff; font-size: 11px; min-width: 150px; pointer-events: none; }
+.proto-legend b { display: block; margin-bottom: 8px; color: var(--primary); border-bottom: 1px solid #1a2a3a; padding-bottom: 4px; }
+.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-weight: 500; }
+.legend-item .dot { width: 10px; height: 10px; border-radius: 2px; }
 
 .threat-intel-overlay { position: absolute; top: 20px; right: 20px; z-index: 1000; }
 .intel-box { background: rgba(0,0,0,0.85); border: 1px solid var(--border); border-radius: 8px; padding: 15px; min-width: 180px; backdrop-filter: blur(4px); }

@@ -17,9 +17,9 @@ if ($vlanId <= 0) {
 $currentHour = (int)date('H');
 $currentTraffic = $pdo->prepare("SELECT 
     SUM(bytes) as bytes, 
-    SUM(packets) as packets 
+    SUM(pkts) as packets 
     FROM plugin_dflow_flows 
-    WHERE vlan = ? AND last_seen >= DATE_SUB(NOW(), INTERVAL 1 HOUR)");
+    WHERE vlan = ? AND ts >= DATE_SUB(NOW(), INTERVAL 1 HOUR)");
 $currentTraffic->execute([$vlanId]);
 $current = $currentTraffic->fetch(PDO::FETCH_ASSOC);
 
@@ -29,12 +29,14 @@ $baselineStmt->execute([$vlanId, $currentHour]);
 $baseline = $baselineStmt->fetch(PDO::FETCH_ASSOC);
 
 // 3. Get Top ASNs for this VLAN (Flow-First)
+// Note: We'll use the correlated ASN if available in flows, or join with hosts
 $topAsns = $pdo->prepare("SELECT 
-    asn, 
-    SUM(bytes) as traffic 
-    FROM plugin_dflow_flows 
-    WHERE vlan = ? 
-    GROUP BY asn 
+    h.asn, 
+    SUM(f.bytes) as traffic 
+    FROM plugin_dflow_flows f
+    JOIN plugin_dflow_hosts h ON (f.src_ip = h.ip_address OR f.dst_ip = h.ip_address)
+    WHERE f.vlan = ? AND h.asn IS NOT NULL
+    GROUP BY h.asn 
     ORDER BY traffic DESC 
     LIMIT 5");
 $topAsns->execute([$vlanId]);

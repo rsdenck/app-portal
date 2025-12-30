@@ -94,6 +94,11 @@ render_header('DFlow · Flow-First Network Traffic Intelligence Platform', $user
         <div class="value"><?= number_format($avgPPS) ?></div>
         <div class="footer-note">Média de pacotes/seg</div>
     </div>
+    <div class="summary-card info" onclick="location.href='plugin_dflow_asn_view.php'" style="cursor:pointer">
+        <span class="muted">ASN Intelligence</span>
+        <div class="value">BGP</div>
+        <div class="footer-note">Ver Top ASNs e Rotas</div>
+    </div>
 </div>
 
 <div style="display:grid;grid-template-columns: 2fr 1fr;gap:30px">
