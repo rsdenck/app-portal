@@ -23,6 +23,8 @@ session_name((string)($config['app']['session_name'] ?? 'portal_session'));
 session_start();
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/snmp_api.php';
+
 require_once __DIR__ . '/security.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/layout.php';
@@ -46,8 +48,9 @@ plugins_ensure_table($pdo);
 projects_ensure_schema($pdo);
 dflow_ensure_tables($pdo);
 
-function upload_file(array $file, string $destinationDir): ?array
-{
+if (!function_exists('upload_file')) {
+    function upload_file(array $file, string $destinationDir): ?array
+    {
     if ($file['error'] !== UPLOAD_ERR_OK) {
         return null;
     }
@@ -109,5 +112,6 @@ function upload_file(array $file, string $destinationDir): ?array
     }
 
     return null;
+    }
 }
 
