@@ -154,16 +154,6 @@ render_header('Atendente · Plugins', $user);
                     <span class="status-dot <?= $p['is_active'] ? 'status-active' : '' ?>"></span>
                     <?= $p['is_active'] ? 'Ativo' : 'Inativo' ?>
                   </div>
-                  <?php if ($p['is_active']): ?>
-                    <?php 
-                    $pluginPage = "plugin_" . $p['name'] . ".php";
-                    if ($p['name'] === 'deepflow' || $p['name'] === 'netflow') {
-                        $pluginPage = "plugin_dflow_maps.php";
-                    }
-                    if (file_exists(__DIR__ . '/' . $pluginPage)): ?>
-                      <a href="/app/<?= $pluginPage ?>" class="btn primary">Acessar</a>
-                    <?php endif; ?>
-                  <?php endif; ?>
                   <a href="/app/atendente_plugin_config.php?name=<?= urlencode($p['name']) ?>" class="btn">Configurar</a>
                 </div>
             </div>
