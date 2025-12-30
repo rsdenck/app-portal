@@ -22,7 +22,7 @@ function plugins_ensure_table(PDO $pdo): void
         required_category_slug VARCHAR(100) DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sql);
 
     // Cache table for ASN and GeoIP
@@ -31,7 +31,7 @@ function plugins_ensure_table(PDO $pdo): void
         cache_value JSON NOT NULL,
         expires_at TIMESTAMP NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlCache);
 
     // Persist table for NSX collected data
@@ -40,7 +40,7 @@ function plugins_ensure_table(PDO $pdo): void
         data_type VARCHAR(50) NOT NULL UNIQUE,
         data_content JSON NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlNsx);
 
     // Persist table for vCenter collected data
@@ -49,7 +49,7 @@ function plugins_ensure_table(PDO $pdo): void
         data_type VARCHAR(50) NOT NULL UNIQUE,
         data_content JSON NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlVcenter);
 
     // Persist table for generic Virtualization data
@@ -60,12 +60,12 @@ function plugins_ensure_table(PDO $pdo): void
         data_content JSON NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY `plugin_data_type` (`plugin_name`, `data_type`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlVirt);
 
-    // DFlow Data Tables
     $sqlDflowInterfaces = "CREATE TABLE IF NOT EXISTS plugin_dflow_interfaces (
         id INT AUTO_INCREMENT PRIMARY KEY,
+        device_ip VARCHAR(45) NOT NULL,
         if_index INT NOT NULL,
         name VARCHAR(100),
         description TEXT,
@@ -78,8 +78,8 @@ function plugins_ensure_table(PDO $pdo): void
         in_packets BIGINT DEFAULT 0,
         out_packets BIGINT DEFAULT 0,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY `idx_if_index` (`if_index`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        UNIQUE KEY `idx_dev_if` (`device_ip`, `if_index`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlDflowInterfaces);
 
     $sqlDflowHosts = "CREATE TABLE IF NOT EXISTS plugin_dflow_hosts (
@@ -96,30 +96,42 @@ function plugins_ensure_table(PDO $pdo): void
         last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY `idx_ip_address` (`ip_address`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlDflowHosts);
 
     $sqlDflowFlows = "CREATE TABLE IF NOT EXISTS plugin_dflow_flows (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         src_ip VARCHAR(45) NOT NULL,
-        src_port INT,
+        src_port INT UNSIGNED,
         dst_ip VARCHAR(45) NOT NULL,
-        dst_port INT,
-        protocol VARCHAR(10),
-        application VARCHAR(50),
-        bytes BIGINT DEFAULT 0,
-        packets BIGINT DEFAULT 0,
+        dst_port INT UNSIGNED,
+        proto VARCHAR(20),
+        app_proto VARCHAR(100),
+        bytes BIGINT UNSIGNED DEFAULT 0,
+        pkts BIGINT UNSIGNED DEFAULT 0,
         vlan INT DEFAULT 0,
+        ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        tcp_flags TINYINT UNSIGNED DEFAULT 0,
         rtt_ms FLOAT DEFAULT NULL,
-        l7_proto VARCHAR(50) DEFAULT NULL,
-        start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        end_time TIMESTAMP NULL,
-        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        eth_type VARCHAR(10) DEFAULT NULL,
+        pcp TINYINT UNSIGNED DEFAULT 0,
+        sni VARCHAR(255) DEFAULT NULL,
+        ja3 CHAR(32) DEFAULT NULL,
+        anomaly TEXT DEFAULT NULL,
+        cve VARCHAR(50) DEFAULT NULL,
+        src_mac VARCHAR(17) DEFAULT NULL,
+        dst_mac VARCHAR(17) DEFAULT NULL,
+        as_src INT UNSIGNED,
+        as_dst INT UNSIGNED,
+        application VARCHAR(100),
+        input_if TEXT,
+        output_if TEXT,
         KEY `idx_src_ip` (`src_ip`),
         KEY `idx_dst_ip` (`dst_ip`),
-        KEY `idx_application` (`application`),
-        KEY `idx_vlan` (`vlan`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        KEY `idx_app_proto` (`app_proto`),
+        KEY `idx_vlan` (`vlan`),
+        KEY `idx_ts` (`ts`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlDflowFlows);
 
     $sqlDflowTopology = "CREATE TABLE IF NOT EXISTS plugin_dflow_topology (
@@ -133,7 +145,7 @@ function plugins_ensure_table(PDO $pdo): void
         protocol ENUM('LLDP', 'CDP') NOT NULL,
         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY neighbor (local_device_ip, local_port_index, remote_chassis_id, remote_port_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlDflowTopology);
 
     $sqlDflowVlans = "CREATE TABLE IF NOT EXISTS plugin_dflow_vlans (
@@ -145,7 +157,7 @@ function plugins_ensure_table(PDO $pdo): void
         vlan_type VARCHAR(50),
         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY device_vlan (device_ip, vlan_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlDflowVlans);
 
     $sqlDflowDevices = "CREATE TABLE IF NOT EXISTS plugin_dflow_devices (
@@ -157,9 +169,11 @@ function plugins_ensure_table(PDO $pdo): void
         model VARCHAR(100),
         os_version VARCHAR(100),
         uptime BIGINT UNSIGNED,
+        snmp_community VARCHAR(255) DEFAULT 'public',
+        snmp_version VARCHAR(10) DEFAULT '2c',
         last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY device_ip (ip_address)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlDflowDevices);
 
     $sqlDflowBaselines = "CREATE TABLE IF NOT EXISTS plugin_dflow_baselines (
@@ -173,8 +187,64 @@ function plugins_ensure_table(PDO $pdo): void
         sample_count INT DEFAULT 0,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY vlan_hour (vlan_id, hour_of_day)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlDflowBaselines);
+
+    // --- NOVO MODELO BGP/ASN (Entidades de 1ª Classe) ---
+    
+    // Master ASN Table
+    $sqlAsns = "CREATE TABLE IF NOT EXISTS plugin_dflow_asns (
+        asn_id INT AUTO_INCREMENT PRIMARY KEY,
+        asn_number INT NOT NULL UNIQUE,
+        organization VARCHAR(255),
+        country CHAR(2),
+        rir VARCHAR(20),
+        first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_asn (asn_number)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    $pdo->exec($sqlAsns);
+
+    // BGP Snapshots (Audit Log of Internet Routing State)
+    $sqlBgpSnapshots = "CREATE TABLE IF NOT EXISTS plugin_dflow_bgp_snapshots (
+        snapshot_id INT AUTO_INCREMENT PRIMARY KEY,
+        collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        source ENUM('ripe', 'routeviews', 'bgpq4', 'local') NOT NULL,
+        file_path VARCHAR(255),
+        status ENUM('pending', 'processing', 'completed', 'error') DEFAULT 'pending',
+        INDEX idx_collected (collected_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    $pdo->exec($sqlBgpSnapshots);
+
+    // Temporal Prefix Mapping (The Core of Correlation)
+    $sqlAsnPrefixes = "CREATE TABLE IF NOT EXISTS plugin_dflow_asn_prefixes (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        prefix VARCHAR(50) NOT NULL,
+        asn_id INT NOT NULL,
+        snapshot_id INT,
+        valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        valid_to TIMESTAMP NULL,
+        source ENUM('ripe', 'routeviews', 'bgpq4', 'local') DEFAULT 'local',
+        INDEX idx_prefix_temporal (prefix, valid_from, valid_to),
+        INDEX idx_asn_id (asn_id),
+        FOREIGN KEY (asn_id) REFERENCES plugin_dflow_asns(asn_id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    $pdo->exec($sqlAsnPrefixes);
+
+    // Flow to ASN Mapping (Historical Correlation for Forensics)
+    $pdo->exec("DROP TABLE IF EXISTS plugin_dflow_flow_asn_map");
+    $sqlFlowAsnMap = "CREATE TABLE IF NOT EXISTS plugin_dflow_flow_asn_map (
+        flow_id BIGINT UNSIGNED PRIMARY KEY,
+        src_asn_id INT,
+        dst_asn_id INT,
+        snapshot_id INT,
+        INDEX idx_src_asn (src_asn_id),
+        INDEX idx_dst_asn (dst_asn_id),
+        FOREIGN KEY (flow_id) REFERENCES plugin_dflow_flows(id) ON DELETE CASCADE,
+        FOREIGN KEY (src_asn_id) REFERENCES plugin_dflow_asns(asn_id),
+        FOREIGN KEY (dst_asn_id) REFERENCES plugin_dflow_asns(asn_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    $pdo->exec($sqlFlowAsnMap);
 
     $sqlDflowAlerts = "CREATE TABLE IF NOT EXISTS plugin_dflow_alerts (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -191,8 +261,81 @@ function plugins_ensure_table(PDO $pdo): void
         resolved_at TIMESTAMP NULL,
         KEY `idx_status` (`status`),
         KEY `idx_vlan` (`vlan`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlDflowAlerts);
+
+    $sqlDflowSensors = "CREATE TABLE IF NOT EXISTS plugin_dflow_sensors (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        ip_address VARCHAR(45),
+        status ENUM('online', 'offline', 'error') DEFAULT 'offline',
+        cpu_usage FLOAT DEFAULT 0,
+        mem_usage FLOAT DEFAULT 0,
+        pps BIGINT DEFAULT 0,
+        bps BIGINT DEFAULT 0,
+        packet_drops BIGINT DEFAULT 0,
+        active_flows INT DEFAULT 0,
+        last_heartbeat TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        version VARCHAR(20),
+        UNIQUE KEY idx_sensor_name (name)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    $pdo->exec($sqlDflowSensors);
+
+    $sqlDflowMetrics = "CREATE TABLE IF NOT EXISTS plugin_dflow_system_metrics (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        sensor_id INT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        thread_id INT DEFAULT 0,
+        processed_packets BIGINT DEFAULT 0,
+        processed_bytes BIGINT DEFAULT 0,
+        dropped_packets BIGINT DEFAULT 0,
+        active_sessions INT DEFAULT 0,
+        total_flows BIGINT DEFAULT 0,
+        hash_collisions INT DEFAULT 0,
+        cpu_load FLOAT DEFAULT 0,
+        mem_used BIGINT DEFAULT 0,
+        INDEX idx_sensor_ts (sensor_id, timestamp)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    $pdo->exec($sqlDflowMetrics);
+
+    // --- WATCHER DE SEGURANÇA (Anomalias e Eventos) ---
+
+    $sqlDflowSecurityEvents = "CREATE TABLE IF NOT EXISTS plugin_dflow_security_events (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        event_type VARCHAR(50) NOT NULL,
+        severity ENUM('low', 'medium', 'high', 'critical') DEFAULT 'low',
+        src_ip VARCHAR(45),
+        dst_ip VARCHAR(45),
+        src_asn INT,
+        dst_asn INT,
+        protocol_l4 VARCHAR(10),
+        protocol_l7 VARCHAR(50),
+        detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        evidence JSON,
+        mitre_techniques JSON,
+        INDEX idx_event_type (event_type),
+        INDEX idx_severity (severity),
+        INDEX idx_src_ip (src_ip),
+        INDEX idx_dst_ip (dst_ip),
+        INDEX idx_detected (detected_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    $pdo->exec($sqlDflowSecurityEvents);
+
+    $sqlDflowBaselinesDim = "CREATE TABLE IF NOT EXISTS plugin_dflow_baselines_dim (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        entity_type ENUM('host', 'vlan', 'interface', 'asn', 'protocol') NOT NULL,
+        entity_value VARCHAR(100) NOT NULL,
+        hour_of_day INT NOT NULL,
+        day_of_week INT NOT NULL,
+        avg_bytes BIGINT DEFAULT 0,
+        stddev_bytes BIGINT DEFAULT 0,
+        avg_packets BIGINT DEFAULT 0,
+        stddev_packets BIGINT DEFAULT 0,
+        sample_count INT DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY entity_temporal (entity_type, entity_value, hour_of_day, day_of_week)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    $pdo->exec($sqlDflowBaselinesDim);
 
     // SNMP Data Tables
     $sqlSnmpDevices = "CREATE TABLE IF NOT EXISTS plugin_snmp_devices (
@@ -205,7 +348,7 @@ function plugins_ensure_table(PDO $pdo): void
         last_discovery TIMESTAMP NULL,
         status VARCHAR(20) DEFAULT 'unknown',
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlSnmpDevices);
 
     $sqlSnmpInterfaces = "CREATE TABLE IF NOT EXISTS plugin_snmp_interfaces (
@@ -222,7 +365,7 @@ function plugins_ensure_table(PDO $pdo): void
         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY `idx_device_if` (`device_id`, `if_index`),
         CONSTRAINT fk_snmp_if_device FOREIGN KEY (device_id) REFERENCES plugin_snmp_devices(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
     $pdo->exec($sqlSnmpInterfaces);
 
     // Ensure column exists for older installations
@@ -709,6 +852,11 @@ function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
 
         $category = (string)$p['category'];
         
+        // RBCA: Restricted categories for Clients
+        if ($user['role'] === 'cliente' && in_array($category, ['Redes', 'Segurança', 'Inteligência'])) {
+            continue;
+        }
+
         // Merge Networking, Intelligence and Security for Attendants
         if ($user['role'] === 'atendente' && in_array($category, ['Inteligência', 'Segurança'])) {
             $category = 'Redes';
@@ -728,6 +876,24 @@ function plugin_get_menus(PDO $pdo, ?array $user, array $activePlugins): array
         // DFlow Hub Logic
         if ($user['role'] === 'atendente' && in_array($p['name'], ['dflow', 'bgpview', 'snmp', 'ipinfo', 'netflow', 'deepflow'])) {
             $url = "/app/plugin_dflow_maps.php"; // All network plugins point to the Hub
+            
+            // NTOPNG Style: Remove from grouping to avoid duplicate sidebar entries
+            // We only want ONE entry for "Redes" that points to the Hub
+            $category = 'Redes';
+            if (!isset($groupedMenus[$category])) {
+                $groupedMenus[$category] = [
+                    'label' => 'Redes',
+                    'icon' => 'share-2',
+                    'plugins' => [[
+                        'name' => 'dflow_hub',
+                        'label' => 'Central de Redes',
+                        'url' => '/app/plugin_dflow_maps.php',
+                        'icon' => 'share-2',
+                        'sub' => []
+                    ]]
+                ];
+            }
+            continue; 
         }
         
         // Custom logic for plugins with submenus or different entry points
