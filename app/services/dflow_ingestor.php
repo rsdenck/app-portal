@@ -6,7 +6,7 @@ require __DIR__ . '/../../includes/bootstrap.php';
 
 // Use absolute paths and allow environment override
 $baseDir = dirname(__DIR__, 2);
-$logDir = getenv('DFLOW_LOG_DIR') ?: $baseDir . '/src/dflow-engine';
+$logDir = getenv('DFLOW_LOG_DIR') ?: $baseDir . '/dflow-engine';
 
 function log_ingestor($msg) {
     echo "[" . date('Y-m-d H:i:s') . "] $msg\n";
@@ -37,13 +37,13 @@ function processFlows(PDO $pdo, string $logFile): int {
     $fileSize = filesize($logFile);
     log_ingestor("File size: $fileSize bytes");
     $stmt = $pdo->prepare("INSERT INTO plugin_dflow_flows 
-        (src_ip, src_port, dst_ip, dst_port, proto, app_proto, bytes, pkts, vlan, ts, tcp_flags, rtt_ms, eth_type, pcp) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), ?, ?, ?, ?)");
+        (src_ip, src_port, dst_ip, dst_port, protocol, app_proto, bytes, packets, vlan, ts, tcp_flags, rtt_ms, eth_type, pcp, sni, ja3, anomaly, cve, src_mac, dst_mac) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
     $stmtHost = $pdo->prepare("INSERT INTO plugin_dflow_hosts (ip_address, mac_address, vlan, total_bytes, last_seen) 
         VALUES (?, ?, ?, ?, FROM_UNIXTIME(?)) 
         ON DUPLICATE KEY UPDATE 
-        mac_address = IF(VALUES(mac_address) != '00:00:00:00:00:00', VALUES(mac_address), mac_address),
+        mac_address = IF(VALUES(mac_address) IS NOT NULL AND VALUES(mac_address) != '00:00:00:00:00:00', VALUES(mac_address), mac_address),
         vlan = IF(VALUES(vlan) > 0, VALUES(vlan), vlan),
         total_bytes = total_bytes + VALUES(total_bytes), 
         last_seen = VALUES(last_seen)");
@@ -87,7 +87,7 @@ function processFlows(PDO $pdo, string $logFile): int {
         
         $stmt->execute([
             $srcIp, $srcPort, $dstIp, $dstPort, $proto, $l7, $bytes, $packets, $vlan, $ts,
-            $tcpFlags, $rtt, $ethType, $pcp
+            $tcpFlags, $rtt, $ethType, $pcp, $sni, $ja3, $anomaly, $cve, $srcMac, $dstMac
         ]);
 
         // Update Host stats for Source
@@ -108,15 +108,15 @@ function processFlows(PDO $pdo, string $logFile): int {
     return $count;
 }
 
-function processMetrics(PDO $pdo, string $logFile): int {
+function processMetrics(PDO $pdo, string $logFile, int $sensorId): int {
     if (!file_exists($logFile)) return 0;
     $handle = fopen($logFile, 'r+');
     if (!$handle || !flock($handle, LOCK_EX)) return 0;
 
     $pdo->beginTransaction();
     $stmt = $pdo->prepare("INSERT INTO plugin_dflow_system_metrics 
-        (timestamp, thread_id, processed_packets, processed_bytes, dropped_packets, active_sessions, total_flows, hash_collisions) 
-        VALUES (FROM_UNIXTIME(?), ?, ?, ?, ?, ?, ?, ?)");
+        (sensor_id, timestamp, thread_id, processed_packets, processed_bytes, dropped_packets, active_sessions, total_flows, hash_collisions) 
+        VALUES (?, FROM_UNIXTIME(?), ?, ?, ?, ?, ?, ?, ?)");
 
     $count = 0;
     while (($line = fgets($handle)) !== false) {
@@ -126,7 +126,7 @@ function processMetrics(PDO $pdo, string $logFile): int {
         if (count($data) < 8) continue;
 
         $stmt->execute([
-            (int)$data[0], (int)$data[1], (int)$data[2], (int)$data[3],
+            $sensorId, (int)$data[0], (int)$data[1], (int)$data[2], (int)$data[3],
             (int)$data[4], (int)$data[5], (int)$data[6], (int)$data[7]
         ]);
         $count++;
@@ -156,9 +156,23 @@ if (file_exists($logDir . '/dflow_metrics.log')) {
     $metricsLogs[] = $logDir . '/dflow_metrics.log';
 }
 
+// Identify Sensor
+$sensorName = getenv('DFLOW_SENSOR_NAME') ?: gethostname();
+$stmtSensor = $pdo->prepare("SELECT id FROM plugin_dflow_sensors WHERE name = ?");
+$stmtSensor->execute([$sensorName]);
+$sensor = $stmtSensor->fetch();
+
+if (!$sensor) {
+    // Auto-register sensor if not exists
+    $pdo->prepare("INSERT INTO plugin_dflow_sensors (name, status) VALUES (?, 'online')")->execute([$sensorName]);
+    $sensorId = (int)$pdo->lastInsertId();
+} else {
+    $sensorId = (int)$sensor['id'];
+}
+
 $totalMetrics = 0;
 foreach ($metricsLogs as $file) {
-    $totalMetrics += processMetrics($pdo, $file);
+    $totalMetrics += processMetrics($pdo, $file, $sensorId);
 }
 
 echo "Processed $totalFlows flows and $totalMetrics metric entries across " . count($flowLogs) . " threads.\n";

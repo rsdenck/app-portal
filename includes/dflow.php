@@ -18,6 +18,8 @@ function dflow_ensure_tables(PDO $pdo): void
         vendor VARCHAR(100),
         model VARCHAR(100),
         uptime BIGINT,
+        snmp_community VARCHAR(100) DEFAULT 'public',
+        snmp_version VARCHAR(10) DEFAULT '2c',
         last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
     $pdo->exec($sqlDevices);
@@ -57,7 +59,7 @@ function dflow_ensure_tables(PDO $pdo): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
     $pdo->exec($sqlBlocked);
 
-    // Flows table (Historical data) - Aligned with dflow_ingestor
+    // Flows table (Historical data)
     $sqlFlows = "CREATE TABLE IF NOT EXISTS plugin_dflow_flows (
         id BIGINT AUTO_INCREMENT PRIMARY KEY,
         src_ip VARCHAR(45) NOT NULL,
@@ -103,6 +105,8 @@ function dflow_ensure_tables(PDO $pdo): void
         ip_address VARCHAR(45) NOT NULL UNIQUE,
         mac_address VARCHAR(17),
         hostname VARCHAR(255),
+        vendor VARCHAR(100),
+        os_info VARCHAR(255),
         vlan INT DEFAULT 0,
         threat_score INT DEFAULT 0,
         first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -111,130 +115,76 @@ function dflow_ensure_tables(PDO $pdo): void
         bytes_received BIGINT DEFAULT 0,
         throughput_in INT DEFAULT 0,
         throughput_out INT DEFAULT 0,
-        INDEX idx_mac (mac_address)
+        is_active TINYINT(1) DEFAULT 1,
+        INDEX idx_mac (mac_address),
+        INDEX idx_ip (ip_address)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
     $pdo->exec($sqlHosts);
-    
+
+    // IP Blocks for Scanning
+    $sqlBlocks = "CREATE TABLE IF NOT EXISTS plugin_dflow_ip_blocks (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        cidr VARCHAR(50) NOT NULL UNIQUE,
+        description VARCHAR(255),
+        is_active TINYINT(1) DEFAULT 1,
+        last_scan TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlBlocks);
+
+    // IP Scanning Results
+    $sqlScanning = "CREATE TABLE IF NOT EXISTS plugin_dflow_ip_scanning (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        ip_address VARCHAR(45) NOT NULL UNIQUE,
+        block_id INT,
+        status ENUM('active', 'inactive', 'unknown') DEFAULT 'unknown',
+        open_ports VARCHAR(255),
+        last_checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (block_id) REFERENCES plugin_dflow_ip_blocks(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlScanning);
+
+    // VLANs table
+    $sqlVlans = "CREATE TABLE IF NOT EXISTS plugin_dflow_vlans (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        device_ip VARCHAR(45) NOT NULL,
+        vlan_id INT NOT NULL,
+        vlan_name VARCHAR(100),
+        vlan_status VARCHAR(20) DEFAULT 'active',
+        vlan_type VARCHAR(50) DEFAULT 'static',
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY idx_dev_vlan (device_ip, vlan_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    $pdo->exec($sqlVlans);
+
     // Topology table (for Force-directed graph)
     $sqlTopology = "CREATE TABLE IF NOT EXISTS plugin_dflow_topology (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        source_node VARCHAR(100) NOT NULL,
-        target_node VARCHAR(100) NOT NULL,
+        local_device_ip VARCHAR(45),
+        local_port_index INT,
+        remote_device_name VARCHAR(100),
+        remote_port_id VARCHAR(100),
+        protocol VARCHAR(20),
+        source_node VARCHAR(100),
+        target_node VARCHAR(100),
         weight INT DEFAULT 1,
         last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY idx_edge (source_node, target_node)
+        UNIQUE KEY idx_topo (local_device_ip, local_port_index, remote_device_name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
     $pdo->exec($sqlTopology);
 
-    // BGP Prefixes table for correlation
-    $sqlBgp = "CREATE TABLE IF NOT EXISTS plugin_dflow_bgp_prefixes (
+    // Anomaly Detection table
+    $sqlAnomalies = "CREATE TABLE IF NOT EXISTS plugin_dflow_anomalies (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        prefix VARCHAR(50) NOT NULL,
-        asn INT NOT NULL,
-        as_name VARCHAR(255),
-        source ENUM('routeviews', 'ripe', 'local') DEFAULT 'local',
-        last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_prefix (prefix),
-        UNIQUE KEY idx_prefix_asn (prefix, asn)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    $pdo->exec($sqlBgp);
-
-    // Threat Intel table
-    $sqlThreat = "CREATE TABLE IF NOT EXISTS plugin_dflow_threat_intel (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        indicator VARCHAR(255) NOT NULL,
-        type ENUM('ip', 'domain', 'ja3') DEFAULT 'ip',
-        category VARCHAR(100),
-        threat_score INT DEFAULT 0,
-        source VARCHAR(100),
-        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_indicator (indicator)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    $pdo->exec($sqlThreat);
-
-    // MITRE ATT&CK Mapping
-    $sqlMitre = "CREATE TABLE IF NOT EXISTS plugin_dflow_mitre_mapping (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        technique_id VARCHAR(20) NOT NULL UNIQUE,
-        technique_name VARCHAR(255),
-        tactic VARCHAR(100),
+        type VARCHAR(100),
+        severity ENUM('low', 'medium', 'high', 'critical'),
+        source_ip VARCHAR(45),
+        target_ip VARCHAR(45),
         description TEXT,
+        mitre_tactic VARCHAR(100),
+        mitre_technique VARCHAR(100),
+        status ENUM('open', 'investigating', 'closed') DEFAULT 'open',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    $pdo->exec($sqlMitre);
-
-    // L7 Protocols table
-    $sqlL7 = "CREATE TABLE IF NOT EXISTS plugin_dflow_l7_protocols (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(50) NOT NULL UNIQUE,
-        description VARCHAR(255),
-        is_suspicious TINYINT(1) DEFAULT 0
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    $pdo->exec($sqlL7);
-
-    // System Metrics Table (Observability)
-    $sqlMetrics = "CREATE TABLE IF NOT EXISTS plugin_dflow_system_metrics (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
-        thread_id INT,
-        processed_packets BIGINT,
-        processed_bytes BIGINT,
-        dropped_packets BIGINT,
-        active_sessions INT,
-        total_flows BIGINT,
-        hash_collisions BIGINT,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_timestamp (timestamp)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    $pdo->exec($sqlMetrics);
-
-    // Alerts table for DFlow and Network notifications
-    $sqlAlerts = "CREATE TABLE IF NOT EXISTS plugin_dflow_alerts (
-        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        type VARCHAR(100) NOT NULL,
-        severity ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
-        subject VARCHAR(255) NOT NULL,
-        description TEXT,
-        target_ip VARCHAR(45),
-        source_ip VARCHAR(45),
-        ticket_id BIGINT UNSIGNED NULL,
-        status ENUM('active', 'resolved', 'muted') DEFAULT 'active',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        resolved_at TIMESTAMP NULL,
-        INDEX idx_status (status),
-        INDEX idx_created (created_at),
-        INDEX idx_ticket (ticket_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    $pdo->exec($sqlAlerts);
-
-    // Deep Analysis table (Packet-level insights)
-    $sqlDeep = "CREATE TABLE IF NOT EXISTS plugin_dflow_deep_analysis (
-        id BIGINT AUTO_INCREMENT PRIMARY KEY,
-        flow_id BIGINT,
-        ip_address VARCHAR(45),
-        protocol VARCHAR(50),
-        analysis_type VARCHAR(100), -- e.g., 'HTTP', 'TLS', 'DNS', 'Security'
-        detail_key VARCHAR(100),    -- e.g., 'user_agent', 'cert_issuer', 'query_name'
-        detail_value TEXT,
-        severity ENUM('info', 'low', 'medium', 'high', 'critical') DEFAULT 'info',
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_flow (flow_id),
-        INDEX idx_ip (ip_address),
-        INDEX idx_type (analysis_type)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    $pdo->exec($sqlDeep);
-
-    // Baseline table for VLAN analysis
-    $sqlBaselines = "CREATE TABLE IF NOT EXISTS plugin_dflow_baselines (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        vlan_id INT NOT NULL,
-        hour_of_day TINYINT NOT NULL,
-        avg_bytes BIGINT UNSIGNED DEFAULT 0,
-        stddev_bytes BIGINT UNSIGNED DEFAULT 0,
-        avg_packets BIGINT UNSIGNED DEFAULT 0,
-        stddev_packets BIGINT UNSIGNED DEFAULT 0,
-        sample_count INT UNSIGNED DEFAULT 0,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY vlan_hour (vlan_id, hour_of_day)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    $pdo->exec($sqlBaselines);
+    $pdo->exec($sqlAnomalies);
 }
