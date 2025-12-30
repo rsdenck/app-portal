@@ -8,32 +8,61 @@
 // Initialize MIBDIRS to include DFLOW vendor MIBs
 function snmp_init_mibs() {
     $mibsPath = realpath(__DIR__ . '/../mibs');
-    if ($mibsPath) {
+    $userMibsPath = 'C:\Users\ranlens.denck\Documents\portal\snmp\mibs';
+    
+    $dirs = [];
+    if ($mibsPath) $dirs[] = $mibsPath;
+    if (is_dir($userMibsPath)) $dirs[] = $userMibsPath;
+
+    if (!empty($dirs)) {
         // Build MIBDIRS string (recursive search for subfolders)
-        $dirs = [$mibsPath];
-        $it = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($mibsPath, RecursiveDirectoryIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::SELF_FIRST
-        );
-        foreach ($it as $file) {
-            if ($file->isDir()) {
-                $dirs[] = $file->getRealPath();
+        $allDirs = $dirs;
+        try {
+            foreach ($dirs as $basePath) {
+                $it = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($basePath, RecursiveDirectoryIterator::SKIP_DOTS),
+                    RecursiveIteratorIterator::SELF_FIRST
+                );
+                foreach ($it as $file) {
+                    if ($file->isDir()) {
+                        $allDirs[] = $file->getRealPath();
+                    }
+                }
             }
+        } catch (Exception $e) {
+            // Fallback to basic dirs if recursion fails
         }
         
         $separator = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') ? ';' : ':';
-        $currentMibDirs = getenv('MIBDIRS') ?: '';
-        $newMibDirs = implode($separator, $dirs);
         
-        if ($currentMibDirs) {
-            $newMibDirs .= $separator . $currentMibDirs;
+        $dirs = $allDirs;
+        
+        // Also add standard Net-SNMP paths if they exist on Windows
+        if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+            $commonPaths = [
+                'C:/usr/share/snmp/mibs',
+                'C:/Program Files/Net-SNMP/share/snmp/mibs',
+                'C:/usr/etc/snmp/mibs'
+            ];
+            foreach ($commonPaths as $p) {
+                if (is_dir($p)) $dirs[] = $p;
+            }
         }
-        
+
+        $newMibDirs = implode($separator, array_unique($dirs));
         putenv("MIBDIRS=$newMibDirs");
         
-        // Attempt to load ALL available MIBs
+        // Disable warning about missing MIBs to avoid cluttering logs
+        if (function_exists('snmp_set_quick_print')) {
+            @snmp_set_quick_print(true);
+        }
+
+        // Attempt to load standard MIBs explicitly
         if (function_exists('snmp_read_mib')) {
-            @snmp_read_mib('ALL');
+            $standardMibs = ['SNMPv2-SMI', 'SNMPv2-MIB', 'IF-MIB', 'IP-MIB', 'TCP-MIB', 'UDP-MIB', 'HOST-RESOURCES-MIB'];
+            foreach ($standardMibs as $mib) {
+                @snmp_read_mib($mib);
+            }
         }
     }
 }
