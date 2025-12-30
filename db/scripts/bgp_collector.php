@@ -107,65 +107,31 @@ if ($shodanToken) {
     }
 }
 
-// 2. Fetch ASN Prefixes from BGPView as "Active" (Green) if not already found
+// 2. Fetch Network info from PeeringDB as "Active" (Green) if not already found
 $asn = $bgpPlugin['config']['my_asn'] ?? '';
-$prefixesFound = [];
 if ($asn) {
-    echo "Fetching prefixes for $asn...\n";
+    echo "Fetching info for $asn from PeeringDB...\n";
     $asnDigit = preg_replace('/[^0-9]/', '', $asn);
-    $url = "https://api.bgpview.io/asn/$asnDigit/prefixes";
+    $url = "https://www.peeringdb.com/api/net?asn=$asnDigit";
     $res = get_json_auth($url);
     
-    if (isset($res['data']['ipv4_prefixes'])) {
-        foreach ($res['data']['ipv4_prefixes'] as $p) {
-            $prefix = $p['prefix'];
-            $prefixesFound[] = $prefix;
-            // Use the first IP of the prefix for geolocation
-            $ip = explode('/', $prefix)[0];
-            
-            if (!isset($threatData['active_ips'][$ip]) && !isset($threatData['vulnerable_ips'][$ip])) {
-                $geo = get_geo($ip, $pdo, $ipinfoToken);
-                $threatData['active_ips'][$ip] = [
-                    'ip' => $ip,
-                    'prefix' => $prefix,
-                    'org' => $p['name'] ?? '',
-                    'geo' => $geo,
-                    'last_update' => date('Y-m-d H:i:s')
-                ];
-                $threatData['stats']['active']++;
-            }
-        }
+    if (isset($res['data'][0])) {
+        $net = $res['data'][0];
+        // Use website or name as org
+        $org = $net['name'] ?? '';
+        
+        // PeeringDB doesn't list all prefixes, but we can at least log the network presence
+        echo "Network found: " . ($net['name'] ?? 'Unknown') . "\n";
     }
 }
 
-// 3. Trace routes (Route-map simulation) for the 3 configured blocks
+// 3. PeeringDB doesn't have direct IP trace, we skip BGPView IP trace
 if (!empty($ipBlocks)) {
-    echo "Tracing routes for configured blocks...\n";
+    echo "Processing configured blocks...\n";
     foreach ($ipBlocks as $block) {
         $ip = explode('/', $block)[0];
-        $url = "https://api.bgpview.io/ip/$ip";
-        $res = get_json_auth($url);
-        
-        if (isset($res['data']['prefixes'])) {
-            foreach ($res['data']['prefixes'] as $p) {
-                // Find peers/upstream/downstream to simulate route tracing
-                $routeInfo = [
-                    'ip' => $ip,
-                    'block' => $block,
-                    'asn' => $p['asn']['asn'] ?? '',
-                    'name' => $p['asn']['name'] ?? '',
-                    'geo' => get_geo($ip, $pdo, $ipinfoToken),
-                    'trace' => []
-                ];
-
-                // Add peers as trace points
-                if (isset($res['data']['rir_allocation']['country_code'])) {
-                    $routeInfo['trace'][] = ['name' => 'RIR', 'country' => $res['data']['rir_allocation']['country_code']];
-                }
-
-                $threatData['route_traces'][$ip] = $routeInfo;
-            }
-        }
+        // Just ensure geo data exists for the blocks
+        get_geo($ip, $pdo, $ipinfoToken);
     }
 }
 
